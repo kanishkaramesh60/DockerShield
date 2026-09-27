@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>DockerShield Security Report</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f4f6f8;
+    color: #222;
+}
+
+header {
+    background: #1f2937;
+    color: white;
+    padding: 24px;
+}
+
+main {
+    padding: 24px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.card {
+    background: white;
+    padding: 18px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.card h3 {
+    margin-top: 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    margin-bottom: 30px;
+}
+
+th,
+td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background: #e5e7eb;
+}
+
+section {
+    margin-top: 30px;
+}
+
+.badge {
+    font-weight: bold;
+}
+
+.note {
+    background: #f9fafb;
+    border-left: 4px solid #6b7280;
+    padding: 12px;
+    margin-top: 15px;
+}
+
+footer {
+    padding: 20px;
+    color: #666;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>DockerShield Security Report</h1>
+
+    <p>
+        Generated:
+        2026-09-27 22:10:47
+    </p>
+
+</header>
+
+<main>
+
+<!-- ===================================================== -->
+<!-- Summary Cards                                         -->
+<!-- ===================================================== -->
+
+<div class="cards">
+
+    <div class="card">
+
+        <h3>Risk Score</h3>
+
+        <p>
+            <span class="badge">
+                100/100
+            </span>
+        </p>
+
+        <p>
+            CRITICAL
+        </p>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Compliance</h3>
+
+        <p>
+            <span class="badge">
+                37.5%
+            </span>
+        </p>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Findings</h3>
+
+        <p>
+            8
+        </p>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Attack Paths</h3>
+
+        <p>
+            4
+        </p>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Correlations</h3>
+
+        <p>
+            4
+        </p>
+
+    </div>
+
+
+    <div class="card">
+
+        <h3>Remediations</h3>
+
+        <p>
+            8
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- XGBoost                                               -->
+<!-- ===================================================== -->
+
+
+        <section>
+            <h2>XGBoost Risk Prediction</h2>
+
+            <div class="cards">
+
+                <div class="card">
+                    <h3>Predicted Risk</h3>
+                    <p>
+                        <span class="badge">
+                            CRITICAL
+                        </span>
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3>Model Confidence</h3>
+                    <p>
+                        99.98%
+                    </p>
+                </div>
+
+            </div>
+
+            <h3>Risk Class Probabilities</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Risk Class</th>
+                        <th>Probability</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    
+            <tr>
+                <td>SECURE</td>
+                <td>0.00%</td>
+            </tr>
+            
+            <tr>
+                <td>LOW</td>
+                <td>0.00%</td>
+            </tr>
+            
+            <tr>
+                <td>MEDIUM</td>
+                <td>0.00%</td>
+            </tr>
+            
+            <tr>
+                <td>HIGH</td>
+                <td>0.01%</td>
+            </tr>
+            
+            <tr>
+                <td>CRITICAL</td>
+                <td>99.98%</td>
+            </tr>
+            
+                </tbody>
+            </table>
+
+            <p class="note">
+                The XGBoost prediction is an additional machine-learning
+                risk assessment. Deterministic DockerShield security rules
+                remain the primary source of individual security findings.
+            </p>
+        </section>
+        
+
+
+<!-- ===================================================== -->
+<!-- Security Findings                                     -->
+<!-- ===================================================== -->
+
+<section>
+
+<h2>Security Findings</h2>
+
+<table>
+
+<thead>
+
+<tr>
+    <th>Rule</th>
+    <th>Severity</th>
+    <th>Title</th>
+    <th>Container</th>
+    <th>Description</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+
+        <tr>
+            <td>DS015</td>
+            <td>CRITICAL</td>
+            <td>Compose service uses privileged mode</td>
+            <td>web</td>
+            <td>The Compose service is configured with privileged mode.</td>
+        </tr>
+        
+        <tr>
+            <td>DS016</td>
+            <td>CRITICAL</td>
+            <td>Docker socket exposed to Compose service</td>
+            <td>web</td>
+            <td>The service has access to the Docker daemon socket.</td>
+        </tr>
+        
+        <tr>
+            <td>DS017</td>
+            <td>HIGH</td>
+            <td>Compose service uses host networking</td>
+            <td>web</td>
+            <td>The service uses the host network namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS018</td>
+            <td>HIGH</td>
+            <td>Compose service uses host PID namespace</td>
+            <td>web</td>
+            <td>The service shares the host PID namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS019</td>
+            <td>HIGH</td>
+            <td>Compose service uses host IPC namespace</td>
+            <td>web</td>
+            <td>The service shares the host IPC namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS020</td>
+            <td>HIGH</td>
+            <td>Dangerous Linux capabilities detected</td>
+            <td>web</td>
+            <td>The Compose service requests Linux capabilities that can increase its privileges.</td>
+        </tr>
+        
+        <tr>
+            <td>DS021</td>
+            <td>MEDIUM</td>
+            <td>Memory limit not configured</td>
+            <td>web</td>
+            <td>The Compose service does not define a memory limit.</td>
+        </tr>
+        
+        <tr>
+            <td>DS022</td>
+            <td>MEDIUM</td>
+            <td>CPU limit not configured</td>
+            <td>web</td>
+            <td>The Compose service does not define a CPU resource limit.</td>
+        </tr>
+        
+
+</tbody>
+
+</table>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- Correlations                                          -->
+<!-- ===================================================== -->
+
+<section>
+
+<h2>Correlated Conditions</h2>
+
+<table>
+
+<thead>
+
+<tr>
+    <th>ID</th>
+    <th>Severity</th>
+    <th>Title</th>
+    <th>Matched Rules</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+
+        <tr>
+            <td>CORR-001</td>
+            <td>CRITICAL</td>
+            <td>Elevated container privilege</td>
+            <td>DS015, DS020</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-002</td>
+            <td>CRITICAL</td>
+            <td>Docker host control exposure</td>
+            <td>DS016</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-003</td>
+            <td>HIGH</td>
+            <td>Reduced namespace isolation</td>
+            <td>DS017, DS018, DS019</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-004</td>
+            <td>CRITICAL</td>
+            <td>Multiple privilege boundaries weakened</td>
+            <td>DS015, DS017, DS018, DS019</td>
+        </tr>
+        
+
+</tbody>
+
+</table>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- Attack Paths                                          -->
+<!-- ===================================================== -->
+
+<section>
+
+<h2>Potential Attack Paths</h2>
+
+<table>
+
+<thead>
+
+<tr>
+    <th>ID</th>
+    <th>Severity</th>
+    <th>Title</th>
+    <th>Matched Rules</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+
+        <tr>
+            <td>PATH-001</td>
+            <td>CRITICAL</td>
+            <td>Docker daemon access path</td>
+            <td>DS016</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-002</td>
+            <td>CRITICAL</td>
+            <td>Privileged container path</td>
+            <td>DS015, DS020</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-003</td>
+            <td>HIGH</td>
+            <td>Host namespace exposure path</td>
+            <td>DS017, DS018, DS019</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-004</td>
+            <td>CRITICAL</td>
+            <td>Combined host-impact path</td>
+            <td>DS015, DS017, DS018</td>
+        </tr>
+        
+
+</tbody>
+
+</table>
+
+</section>
+
+
+<!-- ===================================================== -->
+<!-- Remediation                                           -->
+<!-- ===================================================== -->
+
+<section>
+
+<h2>Remediation Recommendations</h2>
+
+<table>
+
+<thead>
+
+<tr>
+    <th>ID</th>
+    <th>Rule</th>
+    <th>Priority</th>
+    <th>Title</th>
+    <th>Attack Path Impact</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+
+        <tr>
+            <td>REM-001</td>
+            <td>DS015</td>
+            <td>CRITICAL</td>
+            <td>Remove privileged container mode</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-002</td>
+            <td>DS016</td>
+            <td>CRITICAL</td>
+            <td>Remove Docker socket exposure</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-003</td>
+            <td>DS017</td>
+            <td>HIGH</td>
+            <td>Disable host networking</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-004</td>
+            <td>DS018</td>
+            <td>HIGH</td>
+            <td>Disable host PID namespace</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-005</td>
+            <td>DS019</td>
+            <td>HIGH</td>
+            <td>Disable host IPC namespace</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-006</td>
+            <td>DS020</td>
+            <td>HIGH</td>
+            <td>Remove unnecessary Linux capabilities</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-007</td>
+            <td>DS021</td>
+            <td>MEDIUM</td>
+            <td>Add a memory limit</td>
+            <td>
+                NO
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-008</td>
+            <td>DS022</td>
+            <td>MEDIUM</td>
+            <td>Add a CPU limit</td>
+            <td>
+                NO
+            </td>
+        </tr>
+        
+
+</tbody>
+
+</table>
+
+</section>
+
+</main>
+
+
+<footer>
+
+    DockerShield —
+    Docker Security, Compliance & Attack-Path Analysis
+
+</footer>
+
+</body>
+
+</html>

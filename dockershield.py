@@ -21,6 +21,8 @@ from dockershield.engine.baseline import (
     load_baseline,
     compare_with_baseline,
 )
+from dockershield.report import generate_html_report
+from dockershield.ml.predict import predict_risk
 
 
 VERSION = "0.5.0"
@@ -111,6 +113,48 @@ def print_risk_assessment(findings: list[Finding]) -> None:
     print(f"LOW         : {counts['LOW']}")
 
     print("=" * 70)
+
+def print_ml_risk_assessment(
+    findings,
+) -> None:
+    """
+    Print the XGBoost risk prediction.
+    """
+
+    try:
+        prediction = predict_risk(findings)
+    except FileNotFoundError as exc:
+        print("\n[ML] XGBoost model unavailable.")
+        print(f"Details: {exc}")
+        return
+
+    print("\n" + "=" * 60)
+    print("XGBOOST RISK PREDICTION")
+    print("=" * 60)
+
+    print(
+        f"Model: {prediction['model']}"
+    )
+
+    print(
+        f"Predicted Risk: "
+        f"{prediction['predicted_class']}"
+    )
+
+    print(
+        f"Confidence: "
+        f"{prediction['confidence'] * 100:.2f}%"
+    )
+
+    print("\nClass probabilities:")
+
+    for label, probability in (
+        prediction["probabilities"].items()
+    ):
+        print(
+            f"  {label:<10} "
+            f"{probability * 100:>6.2f}%"
+        )
 
 def print_compliance_assessment(findings):
     compliance = calculate_compliance(findings)
@@ -463,6 +507,7 @@ def compose_scan(path: str) -> None:
             findings,
             attack_path_assessment["paths"],
         )
+        print_ml_risk_assessment(findings)
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
@@ -665,6 +710,26 @@ def main() -> None:
     )
 
     # --------------------------------------------------------
+    # report
+    # --------------------------------------------------------
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate an HTML security report from a Compose scan.",
+    )
+
+    report_parser.add_argument(
+        "path",
+        help="Path to the Docker Compose YAML file.",
+    )
+
+    report_parser.add_argument(
+        "--output",
+        default="data\\report.html",
+        help="Output HTML report path.",
+    )
+    
+    # --------------------------------------------------------
     # Parse arguments
     # --------------------------------------------------------
 
@@ -722,6 +787,17 @@ def main() -> None:
         print_baseline_assessment(
             comparison
         )
+
+    elif args.command == "report":
+        findings = scan_compose(args.path)
+
+        report_path = generate_html_report(
+            findings,
+            args.output,
+        )
+
+        print("\n[OK] HTML security report generated.")
+        print(f"Location: {report_path}")
 
     else:
         parser.print_help()
