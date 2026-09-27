@@ -14,9 +14,10 @@ from dockershield.engine.risk import calculate_risk
 from dockershield.engine.compliance import calculate_compliance
 from dockershield.engine.correlation import summarize_correlations
 from dockershield.engine.attack_path import summarize_attack_paths
+from dockershield.engine.remediation import summarize_remediations
 
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 
 # ============================================================
@@ -155,37 +156,7 @@ def print_correlation_assessment(findings):
             + ", ".join(correlation["matched_rules"])
         )
 
-# ============================================================
-# DOCKER ENGINE HEALTH CHECK
-# ============================================================
-
-def doctor() -> None:
-    """Check whether Docker Engine is reachable."""
-
-    print("=" * 70)
-    print("DockerShield Doctor")
-    print("=" * 70)
-
-    try:
-        client = get_client()
-
-        version = client.version()
-
-        print("\n[OK] Docker Engine is reachable.")
-        print(f"Docker version : {version.get('Version', 'Unknown')}")
-        print(f"API version    : {version.get('ApiVersion', 'Unknown')}")
-        print(f"OS             : {version.get('Os', 'Unknown')}")
-        print(f"Architecture   : {version.get('Arch', 'Unknown')}")
-
-        print("\nDockerShield is ready.")
-
-    except Exception as exc:
-        print("\n[ERROR] Docker health check failed.")
-        print(f"Details: {exc}")
-        sys.exit(1)
-
-def print_attack_path_assessment(findings):
-    summary = summarize_attack_paths(findings)
+def print_attack_path_assessment(summary):
 
     print("\nAttack-Path Assessment")
     print("----------------------")
@@ -215,6 +186,66 @@ def print_attack_path_assessment(findings):
             "Path : "
             + " -> ".join(path["steps"])
         )
+
+def print_remediation_assessment(
+    findings: list[Finding],
+    attack_paths: list[dict],
+) -> None:
+    assessment = summarize_remediations(
+        findings,
+        attack_paths,
+    )
+
+    print("\nREMEDIATION ASSESSMENT")
+    print("----------------------")
+    print(f"Remediations Available : {assessment['total']}")
+    print(f"Attack-Path Fixes      : {assessment['attack_path_fixes']}")
+
+    if not assessment["remediations"]:
+        print("No remediation recommendations.")
+        return
+
+    for item in assessment["remediations"]:
+        print(f"\n{item['remediation_id']} {item['rule_id']} "
+              f"{item['severity']}")
+        print(f"Title  : {item['title']}")
+        print(f"Action : {item['action']}")
+        print(f"Why    : {item['rationale']}")
+        print(f"Verify : {item['verification']}")
+        print(
+            "Attack Path Impact : "
+            f"{'YES' if item['affects_attack_path'] else 'NO'}"
+        )
+
+# ============================================================
+# DOCKER ENGINE HEALTH CHECK
+# ============================================================
+
+def doctor() -> None:
+    """Check whether Docker Engine is reachable."""
+
+    print("=" * 70)
+    print("DockerShield Doctor")
+    print("=" * 70)
+
+    try:
+        client = get_client()
+
+        version = client.version()
+
+        print("\n[OK] Docker Engine is reachable.")
+        print(f"Docker version : {version.get('Version', 'Unknown')}")
+        print(f"API version    : {version.get('ApiVersion', 'Unknown')}")
+        print(f"OS             : {version.get('Os', 'Unknown')}")
+        print(f"Architecture   : {version.get('Arch', 'Unknown')}")
+
+        print("\nDockerShield is ready.")
+
+    except Exception as exc:
+        print("\n[ERROR] Docker health check failed.")
+        print(f"Details: {exc}")
+        sys.exit(1)
+
 
 # ============================================================
 # RUNTIME SECURITY SCAN
@@ -311,7 +342,14 @@ def compose_scan(path: str) -> None:
         print_risk_assessment(findings)
         print_compliance_assessment(findings)
         print_correlation_assessment(findings)
-        print_attack_path_assessment(findings)
+
+        attack_path_assessment = summarize_attack_paths(findings)
+        print_attack_path_assessment(attack_path_assessment)
+
+        print_remediation_assessment(
+            findings,
+            attack_path_assessment["paths"],
+        )
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
