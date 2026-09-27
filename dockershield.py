@@ -15,6 +15,12 @@ from dockershield.engine.compliance import calculate_compliance
 from dockershield.engine.correlation import summarize_correlations
 from dockershield.engine.attack_path import summarize_attack_paths
 from dockershield.engine.remediation import summarize_remediations
+from dockershield.engine.simulator import simulate_remediations
+from dockershield.engine.baseline import (
+    save_baseline,
+    load_baseline,
+    compare_with_baseline,
+)
 
 
 VERSION = "0.5.0"
@@ -216,6 +222,113 @@ def print_remediation_assessment(
             "Attack Path Impact : "
             f"{'YES' if item['affects_attack_path'] else 'NO'}"
         )
+
+def print_simulation_assessment(findings, remediation_ids):
+    result = simulate_remediations(
+        findings,
+        remediation_ids,
+    )
+
+    before = result["before"]
+    after = result["after"]
+
+    print("\n" + "=" * 60)
+    print("WHAT-IF REMEDIATION SIMULATION")
+    print("=" * 60)
+
+    print(f"Remediations: {', '.join(remediation_ids)}")
+
+    print("\nBEFORE")
+    print(f"  Findings: {before['findings']}")
+    print(
+        f"  Risk: {before['risk']['score']}/100 "
+        f"({before['risk']['level']})"
+    )
+    print(
+        f"  Compliance: "
+        f"{before['compliance']['compliance_percentage']}%"
+    )
+    print(f"  Attack paths: {before['attack_paths']['total']}")
+
+    print("\nAFTER")
+    print(f"  Findings: {after['findings']}")
+    print(
+        f"  Risk: {after['risk']['score']}/100 "
+        f"({after['risk']['level']})"
+    )
+    print(
+        f"  Compliance: "
+        f"{after['compliance']['compliance_percentage']}%"
+    )
+    print(f"  Attack paths: {after['attack_paths']['total']}")
+
+    print("\nRESOLVED ATTACK PATHS")
+
+    if result["resolved_attack_paths"]:
+        for path_id in result["resolved_attack_paths"]:
+            print(f"  - {path_id}")
+    else:
+        print("  None")
+
+    print("=" * 60)
+
+def print_baseline_assessment(comparison):
+    print("\n" + "=" * 60)
+    print("SECURITY BASELINE COMPARISON")
+    print("=" * 60)
+
+    print(
+        f"Baseline findings : "
+        f"{comparison['baseline_findings']}"
+    )
+    print(
+        f"Current findings  : "
+        f"{comparison['current_findings']}"
+    )
+
+    print(
+        f"Resolved          : "
+        f"{len(comparison['resolved'])}"
+    )
+
+    print(
+        f"New findings      : "
+        f"{len(comparison['new'])}"
+    )
+
+    print(
+        f"Unchanged         : "
+        f"{len(comparison['unchanged'])}"
+    )
+
+    print(
+        f"Risk change       : "
+        f"{comparison['risk_change']:+d}"
+    )
+
+    print(
+        f"Compliance change : "
+        f"{comparison['compliance_change']:+.1f}%"
+    )
+
+    print(
+        f"Regression        : "
+        f"{'YES' if comparison['regression'] else 'NO'}"
+    )
+
+    if comparison["resolved"]:
+        print("\nResolved Findings")
+
+        for item in comparison["resolved"]:
+            print(f"  - {item}")
+
+    if comparison["new"]:
+        print("\nNew Findings")
+
+        for item in comparison["new"]:
+            print(f"  - {item}")
+
+    print("=" * 60)
 
 # ============================================================
 # DOCKER ENGINE HEALTH CHECK
@@ -504,6 +617,54 @@ def main() -> None:
     )
 
     # --------------------------------------------------------
+    # simulate
+    # --------------------------------------------------------
+
+    simulate_parser = subparsers.add_parser(
+        "simulate",
+        help="Simulate remediation changes without modifying files.",
+    )
+
+    simulate_parser.add_argument(
+        "path",
+        help="Path to the Docker Compose YAML file.",
+    )
+
+    simulate_parser.add_argument(
+        "remediations",
+        nargs="+",
+        help="Remediation IDs to simulate, e.g. REM-001 REM-006.",
+    )
+
+    # --------------------------------------------------------
+    # baseline
+    # --------------------------------------------------------
+
+    baseline_parser = subparsers.add_parser(
+        "baseline",
+        help="Save the current Compose security state as a baseline.",
+    )
+
+    baseline_parser.add_argument(
+        "path",
+        help="Path to the Docker Compose YAML file.",
+    )
+
+    # --------------------------------------------------------
+    # compare
+    # --------------------------------------------------------
+
+    compare_parser = subparsers.add_parser(
+        "compare",
+        help="Compare a Compose scan against the saved baseline.",
+    )
+
+    compare_parser.add_argument(
+        "path",
+        help="Path to the Docker Compose YAML file.",
+    )
+
+    # --------------------------------------------------------
     # Parse arguments
     # --------------------------------------------------------
 
@@ -527,6 +688,22 @@ def main() -> None:
 
     elif args.command == "compose":
         compose_scan(args.path)
+
+    elif args.command == "simulate":
+        findings = scan_compose(args.path)
+
+        print_simulation_assessment(
+            findings,
+            args.remediations,
+        )
+
+    elif args.command == "simulate":
+        findings = scan_compose(args.path)
+
+        print_simulation_assessment(
+            findings,
+            args.remediations,
+        )
 
     else:
         parser.print_help()
