@@ -697,12 +697,30 @@ def main() -> None:
             args.remediations,
         )
 
-    elif args.command == "simulate":
+    elif args.command == "baseline":
         findings = scan_compose(args.path)
 
-        print_simulation_assessment(
+        save_baseline(findings)
+
+        print("\n[OK] Security baseline saved.")
+        print("Location: data\\baseline.json")
+
+    elif args.command == "compare":
+        findings = scan_compose(args.path)
+
+        try:
+            baseline = load_baseline()
+        except FileNotFoundError as exc:
+            print(f"\n[ERROR] {exc}")
+            sys.exit(1)
+
+        comparison = compare_with_baseline(
             findings,
-            args.remediations,
+            baseline,
+        )
+
+        print_baseline_assessment(
+            comparison
         )
 
     else:

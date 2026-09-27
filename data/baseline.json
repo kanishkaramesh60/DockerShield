@@ -1,0 +1,280 @@
+{
+  "created_at": "2026-09-27T16:09:57.323713+00:00",
+  "findings": [
+    {
+      "rule_id": "DS015",
+      "severity": "CRITICAL",
+      "title": "Compose service uses privileged mode",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS016",
+      "severity": "CRITICAL",
+      "title": "Docker socket exposed to Compose service",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS017",
+      "severity": "HIGH",
+      "title": "Compose service uses host networking",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS018",
+      "severity": "HIGH",
+      "title": "Compose service uses host PID namespace",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS019",
+      "severity": "HIGH",
+      "title": "Compose service uses host IPC namespace",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS020",
+      "severity": "HIGH",
+      "title": "Dangerous Linux capabilities detected",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS021",
+      "severity": "MEDIUM",
+      "title": "Memory limit not configured",
+      "container": "web"
+    },
+    {
+      "rule_id": "DS022",
+      "severity": "MEDIUM",
+      "title": "CPU limit not configured",
+      "container": "web"
+    }
+  ],
+  "risk": {
+    "score": 100,
+    "level": "CRITICAL",
+    "severity_counts": {
+      "CRITICAL": 2,
+      "HIGH": 4,
+      "MEDIUM": 2,
+      "LOW": 0
+    },
+    "total_findings": 8
+  },
+  "compliance": {
+    "total_controls": 8,
+    "passed": 3,
+    "failed": 5,
+    "compliance_percentage": 37.5,
+    "controls": [
+      {
+        "control_id": "CIS-5.3",
+        "title": "Restrict privileged containers",
+        "status": "FAIL",
+        "finding_count": 1,
+        "rule_ids": [
+          "DS001",
+          "DS015"
+        ]
+      },
+      {
+        "control_id": "CIS-5.4",
+        "title": "Restrict host namespace usage",
+        "status": "FAIL",
+        "finding_count": 3,
+        "rule_ids": [
+          "DS005",
+          "DS006",
+          "DS007",
+          "DS017",
+          "DS018",
+          "DS019"
+        ]
+      },
+      {
+        "control_id": "CIS-5.5",
+        "title": "Restrict sensitive host mounts",
+        "status": "FAIL",
+        "finding_count": 1,
+        "rule_ids": [
+          "DS003",
+          "DS004",
+          "DS016"
+        ]
+      },
+      {
+        "control_id": "CIS-5.6",
+        "title": "Restrict Linux capabilities",
+        "status": "FAIL",
+        "finding_count": 1,
+        "rule_ids": [
+          "DS008",
+          "DS020"
+        ]
+      },
+      {
+        "control_id": "CIS-5.7",
+        "title": "Use resource limits",
+        "status": "FAIL",
+        "finding_count": 2,
+        "rule_ids": [
+          "DS009",
+          "DS010",
+          "DS021",
+          "DS022"
+        ]
+      },
+      {
+        "control_id": "CIS-4.1",
+        "title": "Specify a non-root user",
+        "status": "PASS",
+        "finding_count": 0,
+        "rule_ids": [
+          "DS002",
+          "DS011"
+        ]
+      },
+      {
+        "control_id": "CIS-4.2",
+        "title": "Use safer Dockerfile instructions",
+        "status": "PASS",
+        "finding_count": 0,
+        "rule_ids": [
+          "DS012",
+          "DS014"
+        ]
+      },
+      {
+        "control_id": "CIS-4.3",
+        "title": "Avoid secrets in image configuration",
+        "status": "PASS",
+        "finding_count": 0,
+        "rule_ids": [
+          "DS013"
+        ]
+      }
+    ]
+  },
+  "correlations": {
+    "total": 4,
+    "critical": 3,
+    "high": 1,
+    "correlations": [
+      {
+        "correlation_id": "CORR-001",
+        "title": "Elevated container privilege",
+        "description": "Privileged mode is combined with additional privilege-related configuration.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS015",
+          "DS020"
+        ]
+      },
+      {
+        "correlation_id": "CORR-002",
+        "title": "Docker host control exposure",
+        "description": "The container has Docker daemon socket access, which can significantly increase host impact.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS016"
+        ]
+      },
+      {
+        "correlation_id": "CORR-003",
+        "title": "Reduced namespace isolation",
+        "description": "Multiple host namespace settings reduce isolation between the container and Docker host.",
+        "severity": "HIGH",
+        "matched_rules": [
+          "DS017",
+          "DS018",
+          "DS019"
+        ]
+      },
+      {
+        "correlation_id": "CORR-004",
+        "title": "Multiple privilege boundaries weakened",
+        "description": "The service combines elevated privileges with reduced namespace isolation.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS015",
+          "DS017",
+          "DS018",
+          "DS019"
+        ]
+      }
+    ]
+  },
+  "attack_paths": {
+    "total": 4,
+    "critical": 3,
+    "high": 1,
+    "paths": [
+      {
+        "path_id": "PATH-001",
+        "title": "Docker daemon access path",
+        "description": "Container configuration exposes the Docker daemon socket, creating a potential path to Docker resource control.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS016"
+        ],
+        "steps": [
+          "Container configuration",
+          "DS016",
+          "Potential security impact"
+        ]
+      },
+      {
+        "path_id": "PATH-002",
+        "title": "Privileged container path",
+        "description": "Privileged execution combined with additional capabilities creates a potential elevated-privilege path.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS015",
+          "DS020"
+        ],
+        "steps": [
+          "Container configuration",
+          "DS015",
+          "DS020",
+          "Potential security impact"
+        ]
+      },
+      {
+        "path_id": "PATH-003",
+        "title": "Host namespace exposure path",
+        "description": "Sharing host namespaces reduces container isolation and creates a potential path toward host-level visibility.",
+        "severity": "HIGH",
+        "matched_rules": [
+          "DS017",
+          "DS018",
+          "DS019"
+        ],
+        "steps": [
+          "Container configuration",
+          "DS017",
+          "DS018",
+          "DS019",
+          "Potential security impact"
+        ]
+      },
+      {
+        "path_id": "PATH-004",
+        "title": "Combined host-impact path",
+        "description": "Privileged execution combined with host namespace exposure creates a stronger potential host-impact path.",
+        "severity": "CRITICAL",
+        "matched_rules": [
+          "DS015",
+          "DS017",
+          "DS018"
+        ],
+        "steps": [
+          "Container configuration",
+          "DS015",
+          "DS017",
+          "DS018",
+          "Potential security impact"
+        ]
+      }
+    ]
+  }
+}
