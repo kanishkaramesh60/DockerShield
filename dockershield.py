@@ -11,6 +11,7 @@ from dockershield.runtime import scan_container
 from dockershield.dockerfile import scan_dockerfile
 from dockershield.compose import scan_compose
 from dockershield.engine.risk import calculate_risk
+from dockershield.engine.compliance import calculate_compliance
 
 
 VERSION = "0.4.0"
@@ -102,6 +103,27 @@ def print_risk_assessment(findings: list[Finding]) -> None:
 
     print("=" * 70)
 
+def print_compliance_assessment(findings):
+    compliance = calculate_compliance(findings)
+
+    print("\nCompliance Assessment")
+    print("---------------------")
+    print(f"Controls Checked : {compliance['total_controls']}")
+    print(f"Passed           : {compliance['passed']}")
+    print(f"Failed           : {compliance['failed']}")
+    print(
+        f"Compliance       : "
+        f"{compliance['compliance_percentage']}%"
+    )
+
+    print("\nControl Status")
+
+    for control in compliance["controls"]:
+        print(
+            f"{control['control_id']:<10} "
+            f"{control['status']:<5} "
+            f"{control['title']}"
+        )
 
 # ============================================================
 # DOCKER ENGINE HEALTH CHECK
@@ -226,6 +248,7 @@ def compose_scan(path: str) -> None:
         print_findings(findings)
         print_summary(findings)
         print_risk_assessment(findings)
+        print_compliance_assessment(findings)
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
