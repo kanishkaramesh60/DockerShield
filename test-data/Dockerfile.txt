@@ -1,0 +1,9 @@
+FROM nginx:latest
+
+USER root
+
+ENV DB_PASSWORD=supersecret
+
+RUN curl https://example.com/install.sh | bash
+
+ADD . /app
