@@ -12,6 +12,7 @@ from dockershield.dockerfile import scan_dockerfile
 from dockershield.compose import scan_compose
 from dockershield.engine.risk import calculate_risk
 from dockershield.engine.compliance import calculate_compliance
+from dockershield.engine.correlation import summarize_correlations
 
 
 VERSION = "0.4.0"
@@ -123,6 +124,34 @@ def print_compliance_assessment(findings):
             f"{control['control_id']:<10} "
             f"{control['status']:<5} "
             f"{control['title']}"
+        )
+
+def print_correlation_assessment(findings):
+    correlation_summary = summarize_correlations(findings)
+
+    print("\nCorrelation Assessment")
+    print("----------------------")
+    print(f"Correlations Detected : {correlation_summary['total']}")
+    print(f"Critical              : {correlation_summary['critical']}")
+    print(f"High                  : {correlation_summary['high']}")
+
+    if not correlation_summary["correlations"]:
+        print("\nNo correlated security conditions detected.")
+        return
+
+    print("\nCorrelated Conditions")
+
+    for correlation in correlation_summary["correlations"]:
+        print("\n" + "-" * 70)
+        print(
+            f"[{correlation['severity']}] "
+            f"{correlation['correlation_id']} - "
+            f"{correlation['title']}"
+        )
+        print(f"Description : {correlation['description']}")
+        print(
+            "Matched Rules : "
+            + ", ".join(correlation["matched_rules"])
         )
 
 # ============================================================
@@ -249,6 +278,7 @@ def compose_scan(path: str) -> None:
         print_summary(findings)
         print_risk_assessment(findings)
         print_compliance_assessment(findings)
+        print_correlation_assessment(findings)
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
