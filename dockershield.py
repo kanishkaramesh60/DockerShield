@@ -13,6 +13,7 @@ from dockershield.compose import scan_compose
 from dockershield.engine.risk import calculate_risk
 from dockershield.engine.compliance import calculate_compliance
 from dockershield.engine.correlation import summarize_correlations
+from dockershield.engine.attack_path import summarize_attack_paths
 
 
 VERSION = "0.4.0"
@@ -183,6 +184,37 @@ def doctor() -> None:
         print(f"Details: {exc}")
         sys.exit(1)
 
+def print_attack_path_assessment(findings):
+    summary = summarize_attack_paths(findings)
+
+    print("\nAttack-Path Assessment")
+    print("----------------------")
+    print(f"Attack Paths Detected : {summary['total']}")
+    print(f"Critical              : {summary['critical']}")
+    print(f"High                  : {summary['high']}")
+
+    if not summary["paths"]:
+        print("\nNo potential attack paths detected.")
+        return
+
+    print("\nPotential Attack Paths")
+
+    for path in summary["paths"]:
+        print("\n" + "-" * 70)
+        print(
+            f"[{path['severity']}] "
+            f"{path['path_id']} - "
+            f"{path['title']}"
+        )
+        print(f"Description : {path['description']}")
+        print(
+            "Matched Rules : "
+            + ", ".join(path["matched_rules"])
+        )
+        print(
+            "Path : "
+            + " -> ".join(path["steps"])
+        )
 
 # ============================================================
 # RUNTIME SECURITY SCAN
@@ -279,6 +311,7 @@ def compose_scan(path: str) -> None:
         print_risk_assessment(findings)
         print_compliance_assessment(findings)
         print_correlation_assessment(findings)
+        print_attack_path_assessment(findings)
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
