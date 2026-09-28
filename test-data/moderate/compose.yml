@@ -1,0 +1,7 @@
+services:
+  web:
+    image: nginx:1.27
+    read_only: true
+    mem_limit: 256m
+    cpus: "0.50"
+    network_mode: host

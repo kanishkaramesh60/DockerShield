@@ -1,0 +1,67 @@
+name: DockerShield Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+jobs:
+  security-scan:
+    name: DockerShield Security Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install DockerShield dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml docker xgboost scikit-learn
+
+      - name: Run DockerShield tests
+        run: |
+          python -m pytest -q
+
+      - name: Verify secure environment passes
+        run: |
+          python ci_security_gate.py test-data/secure/compose.yml 60
+
+      - name: Verify moderate environment
+        run: |
+          python ci_security_gate.py test-data/moderate/compose.yml 60
+
+      - name: Verify vulnerable environment is rejected
+        run: |
+          python - <<'PY'
+          import subprocess
+          import sys
+
+          command = [
+              sys.executable,
+              "ci_security_gate.py",
+              "test-data/vulnerable/compose.yml",
+              "60",
+          ]
+
+          result = subprocess.run(command)
+
+          if result.returncode == 0:
+              print("ERROR: Vulnerable environment unexpectedly passed the security gate.")
+              raise SystemExit(1)
+
+          print("Vulnerable environment correctly rejected.")
+          PY
