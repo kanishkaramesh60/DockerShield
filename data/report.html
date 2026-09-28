@@ -99,7 +99,7 @@ footer {
 
     <p>
         Generated:
-        2026-09-28 12:36:39
+        2026-09-28 20:19:23
     </p>
 
 </header>
@@ -118,12 +118,12 @@ footer {
 
         <p>
             <span class="badge">
-                39/100
+                100/100
             </span>
         </p>
 
         <p>
-            MEDIUM
+            CRITICAL
         </p>
 
     </div>
@@ -135,7 +135,7 @@ footer {
 
         <p>
             <span class="badge">
-                75.0%
+                37.5%
             </span>
         </p>
 
@@ -147,7 +147,7 @@ footer {
         <h3>Findings</h3>
 
         <p>
-            3
+            8
         </p>
 
     </div>
@@ -158,7 +158,7 @@ footer {
         <h3>Attack Paths</h3>
 
         <p>
-            0
+            4
         </p>
 
     </div>
@@ -169,7 +169,7 @@ footer {
         <h3>Correlations</h3>
 
         <p>
-            0
+            4
         </p>
 
     </div>
@@ -180,7 +180,7 @@ footer {
         <h3>Remediations</h3>
 
         <p>
-            0
+            8
         </p>
 
     </div>
@@ -202,7 +202,7 @@ footer {
                     <h3>Predicted Risk</h3>
                     <p>
                         <span class="badge">
-                            MEDIUM
+                            CRITICAL
                         </span>
                     </p>
                 </div>
@@ -210,7 +210,7 @@ footer {
                 <div class="card">
                     <h3>Model Confidence</h3>
                     <p>
-                        97.15%
+                        99.98%
                     </p>
                 </div>
 
@@ -230,27 +230,27 @@ footer {
                     
             <tr>
                 <td>SECURE</td>
-                <td>0.11%</td>
+                <td>0.00%</td>
             </tr>
             
             <tr>
                 <td>LOW</td>
-                <td>1.75%</td>
+                <td>0.00%</td>
             </tr>
             
             <tr>
                 <td>MEDIUM</td>
-                <td>97.15%</td>
+                <td>0.00%</td>
             </tr>
             
             <tr>
                 <td>HIGH</td>
-                <td>0.80%</td>
+                <td>0.01%</td>
             </tr>
             
             <tr>
                 <td>CRITICAL</td>
-                <td>0.18%</td>
+                <td>99.98%</td>
             </tr>
             
                 </tbody>
@@ -291,27 +291,67 @@ footer {
 
 
         <tr>
-            <td>DS003</td>
+            <td>DS015</td>
             <td>CRITICAL</td>
-            <td>Docker socket exposed to container</td>
-            <td>dockershield-socket-test</td>
-            <td>The Docker Engine socket is mounted into the container.</td>
+            <td>Compose service uses privileged mode</td>
+            <td>web</td>
+            <td>The Compose service is configured with privileged mode.</td>
         </tr>
         
         <tr>
-            <td>DS009</td>
+            <td>DS016</td>
+            <td>CRITICAL</td>
+            <td>Docker socket exposed to Compose service</td>
+            <td>web</td>
+            <td>The service has access to the Docker daemon socket.</td>
+        </tr>
+        
+        <tr>
+            <td>DS017</td>
+            <td>HIGH</td>
+            <td>Compose service uses host networking</td>
+            <td>web</td>
+            <td>The service uses the host network namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS018</td>
+            <td>HIGH</td>
+            <td>Compose service uses host PID namespace</td>
+            <td>web</td>
+            <td>The service shares the host PID namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS019</td>
+            <td>HIGH</td>
+            <td>Compose service uses host IPC namespace</td>
+            <td>web</td>
+            <td>The service shares the host IPC namespace.</td>
+        </tr>
+        
+        <tr>
+            <td>DS020</td>
+            <td>HIGH</td>
+            <td>Dangerous Linux capabilities detected</td>
+            <td>web</td>
+            <td>The Compose service requests Linux capabilities that can increase its privileges.</td>
+        </tr>
+        
+        <tr>
+            <td>DS021</td>
             <td>MEDIUM</td>
             <td>Memory limit not configured</td>
-            <td>dockershield-socket-test</td>
-            <td>The container does not have a memory limit configured.</td>
+            <td>web</td>
+            <td>The Compose service does not define a memory limit.</td>
         </tr>
         
         <tr>
-            <td>DS010</td>
+            <td>DS022</td>
             <td>MEDIUM</td>
             <td>CPU limit not configured</td>
-            <td>dockershield-socket-test</td>
-            <td>The container does not have a CPU limit configured.</td>
+            <td>web</td>
+            <td>The Compose service does not define a CPU resource limit.</td>
         </tr>
         
 
@@ -346,6 +386,34 @@ footer {
 <tbody>
 
 
+        <tr>
+            <td>CORR-001</td>
+            <td>CRITICAL</td>
+            <td>Elevated container privilege</td>
+            <td>DS015, DS020</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-002</td>
+            <td>CRITICAL</td>
+            <td>Docker host control exposure</td>
+            <td>DS016</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-003</td>
+            <td>HIGH</td>
+            <td>Reduced namespace isolation</td>
+            <td>DS017, DS018, DS019</td>
+        </tr>
+        
+        <tr>
+            <td>CORR-004</td>
+            <td>CRITICAL</td>
+            <td>Multiple privilege boundaries weakened</td>
+            <td>DS015, DS017, DS018, DS019</td>
+        </tr>
+        
 
 </tbody>
 
@@ -378,6 +446,34 @@ footer {
 <tbody>
 
 
+        <tr>
+            <td>PATH-001</td>
+            <td>CRITICAL</td>
+            <td>Docker daemon access path</td>
+            <td>DS016</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-002</td>
+            <td>CRITICAL</td>
+            <td>Privileged container path</td>
+            <td>DS015, DS020</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-003</td>
+            <td>HIGH</td>
+            <td>Host namespace exposure path</td>
+            <td>DS017, DS018, DS019</td>
+        </tr>
+        
+        <tr>
+            <td>PATH-004</td>
+            <td>CRITICAL</td>
+            <td>Combined host-impact path</td>
+            <td>DS015, DS017, DS018</td>
+        </tr>
+        
 
 </tbody>
 
@@ -411,6 +507,86 @@ footer {
 <tbody>
 
 
+        <tr>
+            <td>REM-001</td>
+            <td>DS015</td>
+            <td>CRITICAL</td>
+            <td>Remove privileged container mode</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-002</td>
+            <td>DS016</td>
+            <td>CRITICAL</td>
+            <td>Remove Docker socket exposure</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-003</td>
+            <td>DS017</td>
+            <td>HIGH</td>
+            <td>Disable host networking</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-004</td>
+            <td>DS018</td>
+            <td>HIGH</td>
+            <td>Disable host PID namespace</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-005</td>
+            <td>DS019</td>
+            <td>HIGH</td>
+            <td>Disable host IPC namespace</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-006</td>
+            <td>DS020</td>
+            <td>HIGH</td>
+            <td>Remove unnecessary Linux capabilities</td>
+            <td>
+                YES
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-007</td>
+            <td>DS021</td>
+            <td>MEDIUM</td>
+            <td>Add a memory limit</td>
+            <td>
+                NO
+            </td>
+        </tr>
+        
+        <tr>
+            <td>REM-008</td>
+            <td>DS022</td>
+            <td>MEDIUM</td>
+            <td>Add a CPU limit</td>
+            <td>
+                NO
+            </td>
+        </tr>
+        
 
 </tbody>
 
