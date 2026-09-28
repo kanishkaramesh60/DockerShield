@@ -22,6 +22,9 @@ def scan_compose(path: str) -> list[Finding]:
 
     services = data.get("services", {})
 
+    if not isinstance(services, dict):
+        return []
+
     findings: list[Finding] = []
 
     for service_name, service in services.items():
@@ -29,12 +32,11 @@ def scan_compose(path: str) -> list[Finding]:
         if not isinstance(service, dict):
             continue
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS015 - Privileged mode
-        # ----------------------------------------------------
+        # ====================================================
 
         if service.get("privileged") is True:
-
             findings.append(
                 Finding(
                     rule_id="DS015",
@@ -60,28 +62,32 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS016 - Docker socket
-        # ----------------------------------------------------
+        # ====================================================
 
         volumes = service.get("volumes", [])
+
+        if not isinstance(volumes, list):
+            volumes = []
 
         docker_socket_found = False
 
         for volume in volumes:
 
             if isinstance(volume, str):
+
                 if "docker.sock" in volume:
                     docker_socket_found = True
 
             elif isinstance(volume, dict):
+
                 source = str(volume.get("source", ""))
 
                 if "docker.sock" in source:
                     docker_socket_found = True
 
         if docker_socket_found:
-
             findings.append(
                 Finding(
                     rule_id="DS016",
@@ -109,12 +115,11 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS017 - Host network
-        # ----------------------------------------------------
+        # ====================================================
 
         if service.get("network_mode") == "host":
-
             findings.append(
                 Finding(
                     rule_id="DS017",
@@ -139,12 +144,11 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS018 - Host PID
-        # ----------------------------------------------------
+        # ====================================================
 
         if service.get("pid") == "host":
-
             findings.append(
                 Finding(
                     rule_id="DS018",
@@ -168,12 +172,11 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS019 - Host IPC
-        # ----------------------------------------------------
+        # ====================================================
 
         if service.get("ipc") == "host":
-
             findings.append(
                 Finding(
                     rule_id="DS019",
@@ -196,9 +199,9 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS020 - Dangerous capabilities
-        # ----------------------------------------------------
+        # ====================================================
 
         cap_add = service.get("cap_add", [])
 
@@ -209,9 +212,10 @@ def scan_compose(path: str) -> list[Finding]:
             "SYS_MODULE",
             "DAC_READ_SEARCH",
             "DAC_OVERRIDE",
+            "NET_RAW",
         }
 
-        detected_capabilities = []
+        detected_capabilities: list[str] = []
 
         if isinstance(cap_add, list):
 
@@ -223,7 +227,6 @@ def scan_compose(path: str) -> list[Finding]:
                     detected_capabilities.append(capability_name)
 
         if detected_capabilities:
-
             findings.append(
                 Finding(
                     rule_id="DS020",
@@ -249,14 +252,13 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS021 - Memory limit
-        # ----------------------------------------------------
+        # ====================================================
 
         memory_limit = service.get("mem_limit")
 
         if not memory_limit:
-
             findings.append(
                 Finding(
                     rule_id="DS021",
@@ -281,17 +283,17 @@ def scan_compose(path: str) -> list[Finding]:
                 )
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # DS022 - CPU limit
-        # ----------------------------------------------------
+        # ====================================================
 
         cpu_limit = (
             service.get("cpus")
             or service.get("cpu_quota")
+            or service.get("cpu_period")
         )
 
         if not cpu_limit:
-
             findings.append(
                 Finding(
                     rule_id="DS022",
@@ -311,6 +313,91 @@ def scan_compose(path: str) -> list[Finding]:
                     ),
                     remediation=(
                         "Define an appropriate CPU limit for the service."
+                    ),
+                )
+            )
+
+        # ====================================================
+        # DS034 - Writable root filesystem
+        # ====================================================
+
+        read_only = service.get("read_only", False)
+
+        if read_only is not True:
+            findings.append(
+                Finding(
+                    rule_id="DS034",
+                    severity="MEDIUM",
+                    title="Compose service root filesystem is writable",
+                    container=service_name,
+                    description=(
+                        "The Compose service does not enable a "
+                        "read-only root filesystem."
+                    ),
+                    evidence=(
+                        f"Service '{service_name}': "
+                        f"read_only={read_only!r}"
+                    ),
+                    impact=(
+                        "A writable root filesystem can allow a compromised "
+                        "application to modify files inside the container."
+                    ),
+                    remediation=(
+                        "Set read_only: true where the application does "
+                        "not require writes to its root filesystem."
+                    ),
+                )
+            )
+
+        # ====================================================
+        # DS035 - No-new-privileges
+        # ====================================================
+
+        security_opt = service.get("security_opt", [])
+
+        if not isinstance(security_opt, list):
+            security_opt = []
+
+        normalized_security_options = {
+            str(option).strip().lower()
+            for option in security_opt
+        }
+
+        no_new_privileges_enabled = any(
+            option in {
+                "no-new-privileges",
+                "no-new-privileges:true",
+                "no-new-privileges=true",
+            }
+            for option in normalized_security_options
+        )
+
+        if not no_new_privileges_enabled:
+            findings.append(
+                Finding(
+                    rule_id="DS035",
+                    severity="MEDIUM",
+                    title=(
+                        "Compose service does not enable "
+                        "no-new-privileges"
+                    ),
+                    container=service_name,
+                    description=(
+                        "The Compose service does not explicitly enable "
+                        "the no-new-privileges security option."
+                    ),
+                    evidence=(
+                        f"Service '{service_name}': "
+                        f"security_opt={security_opt}"
+                    ),
+                    impact=(
+                        "Processes may potentially gain additional "
+                        "privileges through setuid, setgid, or similar "
+                        "mechanisms."
+                    ),
+                    remediation=(
+                        "Add no-new-privileges:true unless the application "
+                        "requires privilege transitions."
                     ),
                 )
             )

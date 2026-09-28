@@ -3,8 +3,7 @@ from pathlib import Path
 from dockershield.compose import scan_compose
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-TEST_DATA = PROJECT_ROOT / "test-data"
+TEST_DATA = Path("test-data")
 
 
 def test_secure_demo_environment():
@@ -41,4 +40,6 @@ def test_vulnerable_demo_environment():
         "DS020",
         "DS021",
         "DS022",
+        "DS034",
+        "DS035",
     }

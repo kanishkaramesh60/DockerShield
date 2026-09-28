@@ -252,7 +252,7 @@ def check_dangerous_capabilities(container) -> Finding | None:
     detected = sorted(
         capability
         for capability in cap_add
-        if capability.upper() in dangerous
+        if str(capability).upper() in dangerous
     )
 
     if detected:
@@ -339,6 +339,179 @@ def check_cpu_limit(container) -> Finding | None:
     return None
 
 
+def check_read_only_rootfs(container) -> Finding | None:
+    attrs = container.attrs
+    host_config = attrs.get("HostConfig", {})
+
+    read_only = host_config.get("ReadonlyRootfs", False)
+
+    if not read_only:
+        return Finding(
+            rule_id="DS023",
+            severity="MEDIUM",
+            title="Container root filesystem is writable",
+            container=container.name,
+            description=(
+                "The container root filesystem is writable."
+            ),
+            evidence="HostConfig.ReadonlyRootfs=false",
+            impact=(
+                "A writable root filesystem can allow a compromised "
+                "application to modify files inside the container."
+            ),
+            remediation=(
+                "Enable a read-only root filesystem where the application "
+                "does not require persistent writes."
+            ),
+        )
+
+    return None
+
+
+def check_no_new_privileges(container) -> Finding | None:
+    attrs = container.attrs
+    host_config = attrs.get("HostConfig", {})
+
+    security_opt = host_config.get("SecurityOpt") or []
+
+    # Docker commonly represents this as:
+    # no-new-privileges:true
+    normalized_options = {
+        str(option).lower().split(":", 1)[0]
+        for option in security_opt
+    }
+
+    if "no-new-privileges" not in normalized_options:
+        return Finding(
+            rule_id="DS024",
+            severity="MEDIUM",
+            title="No-new-privileges security option not enabled",
+            container=container.name,
+            description=(
+                "The container does not explicitly enable the "
+                "no-new-privileges security option."
+            ),
+            evidence=f"HostConfig.SecurityOpt={security_opt}",
+            impact=(
+                "Processes may potentially gain additional privileges "
+                "through setuid, setgid, or similar privilege-changing "
+                "mechanisms."
+            ),
+            remediation=(
+                "Enable no-new-privileges unless the workload explicitly "
+                "requires privilege transitions."
+            ),
+        )
+
+    return None
+
+
+def check_host_devices(container) -> Finding | None:
+    attrs = container.attrs
+    host_config = attrs.get("HostConfig", {})
+
+    devices = host_config.get("Devices") or []
+
+    if devices:
+        device_names = []
+
+        for device in devices:
+            if isinstance(device, dict):
+                path = (
+                    device.get("PathOnHost")
+                    or device.get("PathInContainer")
+                )
+
+                if path:
+                    device_names.append(str(path))
+            else:
+                device_names.append(str(device))
+
+        return Finding(
+            rule_id="DS025",
+            severity="HIGH",
+            title="Host device exposed to container",
+            container=container.name,
+            description=(
+                "The container has direct access to one or more "
+                "host devices."
+            ),
+            evidence=f"HostConfig.Devices={device_names}",
+            impact=(
+                "Direct host device access can weaken container "
+                "isolation and may expose sensitive host resources."
+            ),
+            remediation=(
+                "Remove unnecessary device mappings and grant only "
+                "the minimum device access required by the workload."
+            ),
+        )
+
+    return None
+
+
+def check_capability_drop(container) -> Finding | None:
+    attrs = container.attrs
+    host_config = attrs.get("HostConfig", {})
+
+    cap_drop = host_config.get("CapDrop") or []
+
+    if not cap_drop:
+        return Finding(
+            rule_id="DS026",
+            severity="MEDIUM",
+            title="Linux capabilities are not explicitly restricted",
+            container=container.name,
+            description=(
+                "The container does not explicitly drop Linux "
+                "capabilities."
+            ),
+            evidence=(
+                "HostConfig.CapDrop is empty or not configured."
+            ),
+            impact=(
+                "Keeping unnecessary default capabilities increases "
+                "the privileges available to processes inside the "
+                "container."
+            ),
+            remediation=(
+                "Drop unnecessary capabilities and add back only "
+                "capabilities that the application demonstrably requires."
+            ),
+        )
+
+    return None
+
+
+def check_host_uts(container) -> Finding | None:
+    attrs = container.attrs
+    host_config = attrs.get("HostConfig", {})
+
+    uts_mode = host_config.get("UTSMode", "")
+
+    if uts_mode == "host":
+        return Finding(
+            rule_id="DS027",
+            severity="HIGH",
+            title="Host UTS namespace enabled",
+            container=container.name,
+            description=(
+                "The container shares the host UTS namespace."
+            ),
+            evidence="HostConfig.UTSMode=host",
+            impact=(
+                "Sharing the host UTS namespace reduces isolation of "
+                "hostname and domain-name information."
+            ),
+            remediation=(
+                "Remove host UTS mode unless it is explicitly required "
+                "by the workload."
+            ),
+        )
+
+    return None
+
+
 # ============================================================
 # Runtime Rule Registry
 # ============================================================
@@ -354,6 +527,11 @@ SECURITY_RULES = [
     check_dangerous_capabilities,
     check_memory_limit,
     check_cpu_limit,
+    check_read_only_rootfs,
+    check_no_new_privileges,
+    check_host_devices,
+    check_capability_drop,
+    check_host_uts,
 ]
 
 
