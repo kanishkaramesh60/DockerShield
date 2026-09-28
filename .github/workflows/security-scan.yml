@@ -30,7 +30,7 @@ jobs:
       - name: Install DockerShield dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml docker xgboost scikit-learn
+          python -m pip install pytest pyyaml docker xgboost scikit-learn
 
       - name: Run DockerShield tests
         run: |
