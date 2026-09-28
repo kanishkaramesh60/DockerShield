@@ -6,7 +6,8 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from dockershield.docker_client import get_client
+from dockershield.docker_client import try_get_client
+
 from dockershield.runtime import scan_container
 from dockershield.dockerfile import scan_dockerfile
 from dockershield.compose import scan_compose
@@ -21,15 +22,23 @@ from dockershield.engine.simulator import simulate_remediations
 from dockershield.ml.predict import predict_risk
 
 
+# =========================================================
+# APPLICATION
+# =========================================================
+
 app = FastAPI(
     title="DockerShield API",
     description=(
         "Docker security, compliance, attack-path analysis, "
-        "remediation, simulation and ML risk API."
+        "remediation, simulation and ML risk analysis API."
     ),
     version="1.0.0",
 )
 
+
+# =========================================================
+# REQUEST MODELS
+# =========================================================
 
 class ComposeScanRequest(BaseModel):
     path: str
@@ -48,7 +57,15 @@ class SimulationRequest(BaseModel):
     remediation_ids: list[str]
 
 
+# =========================================================
+# HELPERS
+# =========================================================
+
 def findings_to_dict(findings) -> list[dict[str, Any]]:
+    """
+    Convert Finding dataclasses into JSON-compatible dictionaries.
+    """
+
     return [
         finding.to_dict()
         for finding in findings
@@ -56,10 +73,36 @@ def findings_to_dict(findings) -> list[dict[str, Any]]:
 
 
 def analyze_findings(findings) -> dict[str, Any]:
+    """
+    Run all DockerShield analysis engines against a finding set.
+
+    This is the central API analysis pipeline.
+
+    Pipeline:
+
+        Findings
+           |
+           +--> Risk
+           |
+           +--> Compliance
+           |
+           +--> Correlations
+           |
+           +--> Attack Paths
+           |
+           +--> Remediation
+           |
+           +--> XGBoost
+    """
+
     risk = calculate_risk(findings)
+
     compliance = calculate_compliance(findings)
+
     correlations = summarize_correlations(findings)
+
     attack_paths = summarize_attack_paths(findings)
+
     remediations = summarize_remediations(
         findings,
         attack_paths["paths"],
@@ -67,19 +110,52 @@ def analyze_findings(findings) -> dict[str, Any]:
 
     try:
         ml_prediction = predict_risk(findings)
+
     except FileNotFoundError:
         ml_prediction = None
 
     return {
         "findings": findings_to_dict(findings),
+
         "risk": risk,
+
         "compliance": compliance,
+
         "correlations": correlations,
+
         "attack_paths": attack_paths,
+
         "remediations": remediations,
+
         "ml_prediction": ml_prediction,
     }
 
+
+def validate_file(path_string: str, description: str) -> Path:
+    """
+    Validate a user-provided local file path.
+    """
+
+    path = Path(path_string)
+
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"{description} not found: {path}",
+        )
+
+    if not path.is_file():
+        raise HTTPException(
+            status_code=400,
+            detail=f"{description} is not a file: {path}",
+        )
+
+    return path
+
+
+# =========================================================
+# ROOT
+# =========================================================
 
 @app.get("/")
 def root():
@@ -90,43 +166,73 @@ def root():
     }
 
 
+# =========================================================
+# HEALTH
+# =========================================================
+
 @app.get("/health")
 def health():
-    docker_status = "disconnected"
+    """
+    API health endpoint.
 
-    try:
-        client = get_client()
-        client.ping()
-        docker_status = "connected"
-    except SystemExit:
-        pass
-    except Exception:
-        pass
+    Docker being unavailable does NOT make the API itself unhealthy.
+    """
+
+    client = try_get_client()
+
+    if client is None:
+        return {
+            "status": "healthy",
+            "docker": "disconnected",
+        }
 
     return {
         "status": "healthy",
-        "docker": docker_status,
+        "docker": "connected",
     }
 
 
+# =========================================================
+# CONTAINERS
+# =========================================================
+
 @app.get("/containers")
 def containers():
-    try:
-        client = get_client()
+    """
+    Return all Docker containers.
 
+    This endpoint never terminates the FastAPI process if Docker
+    is unavailable.
+    """
+
+    client = try_get_client()
+
+    if client is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Docker Engine is unavailable. "
+                "Start Docker Desktop and try again."
+            ),
+        )
+
+    try:
         results = []
 
         for container in client.containers.list(all=True):
+
+            image_name = (
+                container.image.tags[0]
+                if container.image.tags
+                else container.image.short_id
+            )
+
             results.append(
                 {
                     "id": container.id[:12],
                     "name": container.name,
                     "status": container.status,
-                    "image": (
-                        container.image.tags[0]
-                        if container.image.tags
-                        else container.image.short_id
-                    ),
+                    "image": image_name,
                 }
             )
 
@@ -142,85 +248,40 @@ def containers():
         )
 
 
+# =========================================================
+# RUNTIME SCAN
+# =========================================================
+
 @app.post("/scan/runtime")
 def runtime_scan(request: RuntimeScanRequest):
-    try:
-        client = get_client()
+    """
+    Scan a running or stopped Docker container.
+    """
 
+    client = try_get_client()
+
+    if client is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Docker Engine is unavailable. "
+                "Start Docker Desktop and try again."
+            ),
+        )
+
+    try:
         container = client.containers.get(
             request.container
         )
 
         findings = scan_container(container)
 
-        return analyze_findings(findings)
+        result = analyze_findings(findings)
 
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        )
-
-
-@app.post("/scan/dockerfile")
-def dockerfile_scan(request: DockerfileScanRequest):
-    path = Path(request.path)
-
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Dockerfile not found: {path}",
-        )
-
-    try:
-        findings = scan_dockerfile(str(path))
-        return analyze_findings(findings)
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        )
-
-
-@app.post("/scan/compose")
-def compose_scan(request: ComposeScanRequest):
-    path = Path(request.path)
-
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Compose file not found: {path}",
-        )
-
-    try:
-        findings = scan_compose(str(path))
-        return analyze_findings(findings)
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc),
-        )
-
-
-@app.post("/simulate")
-def simulate(request: SimulationRequest):
-    path = Path(request.path)
-
-    if not path.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Compose file not found: {path}",
-        )
-
-    try:
-        findings = scan_compose(str(path))
-
-        result = simulate_remediations(
-            findings,
-            request.remediation_ids,
-        )
+        result["scan_metadata"] = {
+            "scan_type": "runtime",
+            "target": request.container,
+        }
 
         return result
 
@@ -229,3 +290,151 @@ def simulate(request: SimulationRequest):
             status_code=400,
             detail=str(exc),
         )
+
+
+# =========================================================
+# DOCKERFILE SCAN
+# =========================================================
+
+@app.post("/scan/dockerfile")
+def dockerfile_scan(
+    request: DockerfileScanRequest,
+):
+    """
+    Scan a Dockerfile.
+    """
+
+    path = validate_file(
+        request.path,
+        "Dockerfile",
+    )
+
+    try:
+        findings = scan_dockerfile(
+            str(path)
+        )
+
+        result = analyze_findings(findings)
+
+        result["scan_metadata"] = {
+            "scan_type": "dockerfile",
+            "target": str(path),
+        }
+
+        return result
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+# =========================================================
+# COMPOSE SCAN
+# =========================================================
+
+@app.post("/scan/compose")
+def compose_scan(
+    request: ComposeScanRequest,
+):
+    """
+    Scan a Docker Compose file.
+    """
+
+    path = validate_file(
+        request.path,
+        "Compose file",
+    )
+
+    try:
+        findings = scan_compose(
+            str(path)
+        )
+
+        result = analyze_findings(findings)
+
+        result["scan_metadata"] = {
+            "scan_type": "compose",
+            "target": str(path),
+        }
+
+        return result
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+# =========================================================
+# SIMULATION
+# =========================================================
+
+@app.post("/simulate")
+def simulate(
+    request: SimulationRequest,
+):
+    """
+    Simulate remediation actions against a Compose scan.
+
+    This is completely in-memory.
+    It does NOT modify Docker or the Compose file.
+    """
+
+    path = validate_file(
+        request.path,
+        "Compose file",
+    )
+
+    try:
+        findings = scan_compose(
+            str(path)
+        )
+
+        result = simulate_remediations(
+            findings,
+            request.remediation_ids,
+        )
+
+        result["scan_metadata"] = {
+            "scan_type": "compose",
+            "target": str(path),
+        }
+
+        return result
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+# =========================================================
+# API INFORMATION
+# =========================================================
+
+@app.get("/api/info")
+def api_info():
+    """
+    Basic API capability information for the dashboard.
+    """
+
+    return {
+        "name": "DockerShield",
+        "version": "1.0.0",
+        "features": [
+            "runtime scanning",
+            "Dockerfile scanning",
+            "Compose scanning",
+            "risk analysis",
+            "compliance analysis",
+            "finding correlation",
+            "attack-path analysis",
+            "attack-path-aware remediation",
+            "what-if remediation simulation",
+            "XGBoost risk prediction",
+        ],
+    }
