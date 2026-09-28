@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
+
+# Make `dockershield` importable and resolve relative data paths
+# (data/, test-data/) from the project root, exactly like the CLI.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+os.chdir(PROJECT_ROOT)
+
 import streamlit as st
 
 from dockershield.dashboard.api_client import DockerShieldAPI
-from dockershield.dashboard.components.cards import status_badge
+from dockershield.dashboard.styles import EXTRA_CSS
 
 
 st.set_page_config(
@@ -452,6 +465,8 @@ hr {
     unsafe_allow_html=True,
 )
 
+st.markdown(EXTRA_CSS, unsafe_allow_html=True)
+
 
 # -------------------------------------------------------------------
 # NAVIGATION
@@ -462,6 +477,7 @@ pages = {
         ("⌂", "Overview"),
         ("◈", "Scan Center"),
         ("≡", "Findings"),
+        ("⚙", "Environment"),
     ],
     "ANALYSIS": [
         ("◉", "Risk Analysis"),
@@ -498,7 +514,11 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    selected_page = None
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Overview"
+
+    def _go(page: str) -> None:
+        st.session_state.current_page = page
 
     for group, items in pages.items():
 
@@ -509,29 +529,43 @@ with st.sidebar:
 
         for icon, label in items:
 
-            if st.button(
+            st.button(
                 f"{icon}   {label}",
                 key=f"nav_{label}",
                 use_container_width=True,
-            ):
-                st.session_state.current_page = label
+                type=(
+                    "primary"
+                    if st.session_state.current_page == label
+                    else "secondary"
+                ),
+                on_click=_go,
+                args=(label,),
+            )
 
-    if "current_page" not in st.session_state:
-        st.session_state.current_page = "Overview"
+    api_online = True
 
     try:
         health = api.health()
-        docker_online = health.get("docker", False)
+        # The API returns "connected" / "disconnected" (a string).
+        docker_online = health.get("docker") == "connected"
     except Exception:
         docker_online = False
+        api_online = False
 
     st.markdown(
         f"""
         <div class="engine-status">
             <div class="engine-text">
-                <span class="engine-dot">●</span>
+                <span class="engine-dot"
+                    style="color:{'#22c55e' if docker_online else '#ef4444'}">●</span>
                 DOCKER ENGINE
                 <strong>{"ONLINE" if docker_online else "OFFLINE"}</strong>
+            </div>
+            <div class="engine-text" style="margin-top:6px;">
+                <span class="engine-dot"
+                    style="color:{'#22c55e' if api_online else '#ef4444'}">●</span>
+                API
+                <strong>{"ONLINE" if api_online else "OFFLINE"}</strong>
             </div>
         </div>
         """,
@@ -570,6 +604,10 @@ if current_page == "Overview":
 
 elif current_page == "Scan Center":
     from dockershield.dashboard.pages.scan import render
+    render(api)
+
+elif current_page == "Environment":
+    from dockershield.dashboard.pages.environment import render
     render(api)
 
 elif current_page == "Findings":

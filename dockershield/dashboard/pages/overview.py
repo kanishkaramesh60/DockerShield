@@ -13,6 +13,10 @@ from dockershield.dashboard.components.charts import (
 )
 
 
+def render(api):
+    render_overview(api, st.session_state.get("scan_data"))
+
+
 def render_overview(api, scan_data=None):
     section_header(
         "Security Overview",
@@ -236,7 +240,7 @@ def _empty_dashboard(api):
 
     try:
         containers = api.containers()
-        count = containers.get("count", 0)
+        count = len(containers)
 
         metric_card(
             "Docker Containers",
