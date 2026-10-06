@@ -99,7 +99,7 @@ footer {
 
     <p>
         Generated:
-        2026-09-28 20:19:23
+        2026-10-03 22:27:23
     </p>
 
 </header>
@@ -135,7 +135,7 @@ footer {
 
         <p>
             <span class="badge">
-                37.5%
+                36.36%
             </span>
         </p>
 
@@ -147,7 +147,7 @@ footer {
         <h3>Findings</h3>
 
         <p>
-            8
+            10
         </p>
 
     </div>
@@ -210,7 +210,7 @@ footer {
                 <div class="card">
                     <h3>Model Confidence</h3>
                     <p>
-                        99.98%
+                        99.99%
                     </p>
                 </div>
 
@@ -250,7 +250,7 @@ footer {
             
             <tr>
                 <td>CRITICAL</td>
-                <td>99.98%</td>
+                <td>99.99%</td>
             </tr>
             
                 </tbody>
@@ -352,6 +352,22 @@ footer {
             <td>CPU limit not configured</td>
             <td>web</td>
             <td>The Compose service does not define a CPU resource limit.</td>
+        </tr>
+        
+        <tr>
+            <td>DS034</td>
+            <td>MEDIUM</td>
+            <td>Compose service root filesystem is writable</td>
+            <td>web</td>
+            <td>The Compose service does not enable a read-only root filesystem.</td>
+        </tr>
+        
+        <tr>
+            <td>DS035</td>
+            <td>MEDIUM</td>
+            <td>Compose service does not enable no-new-privileges</td>
+            <td>web</td>
+            <td>The Compose service does not explicitly enable the no-new-privileges security option.</td>
         </tr>
         
 

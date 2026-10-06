@@ -1,0 +1,9 @@
+docker
+PyYAML
+fastapi
+uvicorn
+streamlit
+requests
+pytest
+xgboost
+scikit-learn

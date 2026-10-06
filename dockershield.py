@@ -579,6 +579,201 @@ def show_version() -> None:
 
     print(f"DockerShield {VERSION}")
 
+def full_scan() -> None:
+    """Run the complete DockerShield security analysis pipeline."""
+
+    compose_path = "test-data\\vulnerable\\compose.yml"
+    dockerfile_path = "test-data\\Dockerfile"
+
+    print("\n" + "=" * 70)
+    print("DOCKERSHIELD FULL SECURITY ANALYSIS")
+    print("=" * 70)
+
+    # --------------------------------------------------------
+    # 1. Docker health check
+    # --------------------------------------------------------
+    print("\n[1/9] Docker Engine Health Check")
+    doctor()
+
+    # --------------------------------------------------------
+    # 2. Environment discovery
+    # --------------------------------------------------------
+    print("\n[2/9] Docker Environment Discovery")
+    discover()
+
+    # --------------------------------------------------------
+    # 3. Runtime scan
+    # --------------------------------------------------------
+    print("\n[3/9] Runtime Container Scan")
+    security_scan()
+
+    # --------------------------------------------------------
+    # 4. Dockerfile scan
+    # --------------------------------------------------------
+    print("\n[4/9] Dockerfile Security Scan")
+    dockerfile_findings = scan_dockerfile(dockerfile_path)
+    print_findings(dockerfile_findings)
+    print_summary(dockerfile_findings)
+    print_risk_assessment(dockerfile_findings)
+
+    # --------------------------------------------------------
+    # 5. Compose scan
+    # --------------------------------------------------------
+    print("\n[5/9] Docker Compose Security Scan")
+    compose_findings = scan_compose(compose_path)
+
+    print_findings(compose_findings)
+    print_summary(compose_findings)
+    print_risk_assessment(compose_findings)
+    print_compliance_assessment(compose_findings)
+    print_correlation_assessment(compose_findings)
+
+    attack_path_summary = summarize_attack_paths(compose_findings)
+    print_attack_path_assessment(attack_path_summary)
+
+    print_remediation_assessment(
+        compose_findings,
+        attack_path_summary["paths"],
+    )
+
+    print_ml_risk_assessment(compose_findings)
+
+    # --------------------------------------------------------
+    # 6. What-if remediation simulation
+    # --------------------------------------------------------
+    print("\n[6/9] What-If Remediation Simulation")
+
+    remediation_summary = summarize_remediations(
+        compose_findings,
+        attack_path_summary["paths"],
+    )
+
+    remediation_ids = [
+        item["remediation_id"]
+        for item in remediation_summary["remediations"]
+    ]
+
+    if remediation_ids:
+        print_simulation_assessment(
+            compose_findings,
+            remediation_ids,
+        )
+    else:
+        print("No remediation actions available for simulation.")
+
+    # --------------------------------------------------------
+    # 7. Baseline / regression analysis
+    # --------------------------------------------------------
+    print("\n[7/9] Baseline / Regression Analysis")
+
+    try:
+        baseline = load_baseline()
+
+        comparison = compare_with_baseline(
+            compose_findings,
+            baseline,
+        )
+
+        print_baseline_assessment(comparison)
+
+    except FileNotFoundError:
+        print("[INFO] No existing baseline found.")
+        print("[INFO] Creating baseline from current scan...")
+
+        save_baseline(compose_findings)
+
+        print("[OK] Baseline created.")
+        print("Location: data\\baseline.json")
+
+    # --------------------------------------------------------
+    # 8. HTML report
+    # --------------------------------------------------------
+    print("\n[8/9] HTML Security Report")
+
+    report_path = generate_html_report(
+        compose_findings,
+        "data\\report.html",
+    )
+
+    print("[OK] HTML report generated.")
+    print(f"Location: {report_path}")
+
+    # --------------------------------------------------------
+    # 9. Final consolidated result
+    # --------------------------------------------------------
+    print("\n[9/9] FINAL SECURITY RESULT")
+
+    risk = calculate_risk(compose_findings)
+    compliance = calculate_compliance(compose_findings)
+    correlations = summarize_correlations(compose_findings)
+    attack_paths = summarize_attack_paths(compose_findings)
+    remediations = summarize_remediations(
+        compose_findings,
+        attack_paths["paths"],
+    )
+
+    print("\n" + "=" * 70)
+    print("DOCKERSHIELD FINAL SECURITY SUMMARY")
+    print("=" * 70)
+
+    print(f"\nRisk Score       : {risk['score']}/100")
+    print(f"Risk Level       : {risk['level']}")
+    print(f"Total Findings   : {risk['total_findings']}")
+
+    counts = risk["severity_counts"]
+
+    print(f"CRITICAL         : {counts['CRITICAL']}")
+    print(f"HIGH             : {counts['HIGH']}")
+    print(f"MEDIUM           : {counts['MEDIUM']}")
+    print(f"LOW              : {counts['LOW']}")
+
+    print(
+        f"\nCompliance       : "
+        f"{compliance['compliance_percentage']}%"
+    )
+
+    print(
+        f"Correlations     : "
+        f"{correlations['total']}"
+    )
+
+    print(
+        f"Attack Paths     : "
+        f"{attack_paths['total']}"
+    )
+
+    print(
+        f"Remediations     : "
+        f"{remediations['total']}"
+    )
+
+    print(
+        f"Attack-Path Fixes: "
+        f"{remediations['attack_path_fixes']}"
+    )
+
+    try:
+        prediction = predict_risk(compose_findings)
+
+        print(
+            f"\nML Risk          : "
+            f"{prediction['predicted_class']}"
+        )
+
+        print(
+            f"ML Confidence    : "
+            f"{prediction['confidence'] * 100:.2f}%"
+        )
+
+    except Exception as exc:
+        print(f"\nML Risk          : Unavailable ({exc})")
+
+    print("\nReport            : data\\report.html")
+    print("Baseline          : data\\baseline.json")
+
+    print("\n" + "=" * 70)
+    print("DOCKERSHIELD FULL ANALYSIS COMPLETE")
+    print("=" * 70)
 
 # ============================================================
 # CLI
@@ -615,6 +810,14 @@ def main() -> None:
         help="Check Docker Engine connectivity and environment.",
     )
 
+    # --------------------------------------------------------
+    # full
+    # --------------------------------------------------------
+
+    subparsers.add_parser(
+        "full",
+        help="Run the complete DockerShield security analysis.",
+    )
     # --------------------------------------------------------
     # discover
     # --------------------------------------------------------
@@ -741,6 +944,9 @@ def main() -> None:
 
     if args.command == "doctor":
         doctor()
+
+    elif args.command == "full":
+        full_scan()
 
     elif args.command == "discover":
         discover()
