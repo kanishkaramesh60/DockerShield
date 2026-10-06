@@ -99,7 +99,7 @@ footer {
 
     <p>
         Generated:
-        2026-10-03 22:27:23
+        2026-10-06 22:08:59
     </p>
 
 </header>
@@ -135,7 +135,7 @@ footer {
 
         <p>
             <span class="badge">
-                36.36%
+                9.09%
             </span>
         </p>
 
@@ -147,7 +147,7 @@ footer {
         <h3>Findings</h3>
 
         <p>
-            10
+            14
         </p>
 
     </div>
@@ -210,7 +210,7 @@ footer {
                 <div class="card">
                     <h3>Model Confidence</h3>
                     <p>
-                        99.99%
+                        99.96%
                     </p>
                 </div>
 
@@ -240,17 +240,17 @@ footer {
             
             <tr>
                 <td>MEDIUM</td>
-                <td>0.00%</td>
-            </tr>
-            
-            <tr>
-                <td>HIGH</td>
                 <td>0.01%</td>
             </tr>
             
             <tr>
+                <td>HIGH</td>
+                <td>0.03%</td>
+            </tr>
+            
+            <tr>
                 <td>CRITICAL</td>
-                <td>99.99%</td>
+                <td>99.96%</td>
             </tr>
             
                 </tbody>
@@ -290,6 +290,38 @@ footer {
 <tbody>
 
 
+        <tr>
+            <td>DS011</td>
+            <td>HIGH</td>
+            <td>Dockerfile explicitly runs as root</td>
+            <td>test-data\Dockerfile</td>
+            <td>The Dockerfile explicitly switches to the root user.</td>
+        </tr>
+        
+        <tr>
+            <td>DS013</td>
+            <td>CRITICAL</td>
+            <td>Possible secret stored in Dockerfile ENV</td>
+            <td>test-data\Dockerfile</td>
+            <td>An environment variable appears to contain a credential, secret, token, or private key.</td>
+        </tr>
+        
+        <tr>
+            <td>DS012</td>
+            <td>MEDIUM</td>
+            <td>Dockerfile uses ADD instruction</td>
+            <td>test-data\Dockerfile</td>
+            <td>The Dockerfile uses ADD, which has additional behavior beyond copying local files.</td>
+        </tr>
+        
+        <tr>
+            <td>DS014</td>
+            <td>HIGH</td>
+            <td>Remote content is piped directly to a shell</td>
+            <td>test-data\Dockerfile</td>
+            <td>The Dockerfile downloads remote content and directly executes it through a shell.</td>
+        </tr>
+        
         <tr>
             <td>DS015</td>
             <td>CRITICAL</td>

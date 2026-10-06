@@ -403,6 +403,34 @@ def doctor() -> None:
         print(f"Details: {exc}")
         sys.exit(1)
 
+def collect_runtime_findings() -> list[Finding]:
+    """Collect findings from all running Docker containers."""
+
+    client = get_client()
+
+    try:
+        containers = client.containers.list()
+
+        if not containers:
+            print("\n[INFO] No running containers found.")
+            return []
+
+        all_findings: list[Finding] = []
+
+        for container in containers:
+            print("\n" + "=" * 70)
+            print(f"Scanning container: {container.name}")
+            print("=" * 70)
+
+            findings = scan_container(container)
+            all_findings.extend(findings)
+
+        return all_findings
+
+    except Exception as exc:
+        print("\n[ERROR] Runtime scan failed.")
+        print(f"Details: {exc}")
+        sys.exit(1)
 
 # ============================================================
 # RUNTIME SECURITY SCAN
@@ -415,44 +443,20 @@ def security_scan() -> None:
     print("DockerShield Runtime Security Scanner")
     print("=" * 70)
 
-    client = get_client()
+    all_findings = collect_runtime_findings()
 
-    try:
-        containers = client.containers.list()
+    if not all_findings:
+        return
 
-        if not containers:
-            print("\n[INFO] No running containers found.")
-            return
-
-        print(f"\nFound {len(containers)} running container(s).")
-
-        all_findings: list[Finding] = []
-
-        for container in containers:
-            print("\n" + "=" * 70)
-            print(f"Scanning container: {container.name}")
-            print("=" * 70)
-
-            findings = scan_container(container)
-
-            print_findings(findings)
-
-            all_findings.extend(findings)
-
-        print_summary(all_findings)
-        print_risk_assessment(all_findings)
-
-    except Exception as exc:
-        print("\n[ERROR] Runtime scan failed.")
-        print(f"Details: {exc}")
-        sys.exit(1)
-
+    print_findings(all_findings)
+    print_summary(all_findings)
+    print_risk_assessment(all_findings)
 
 # ============================================================
 # DOCKERFILE SECURITY SCAN
 # ============================================================
 
-def dockerfile_scan(path: str) -> None:
+def dockerfile_scan(path: str) -> list[Finding]:
     """Scan a Dockerfile."""
 
     print("=" * 70)
@@ -467,6 +471,7 @@ def dockerfile_scan(path: str) -> None:
         print_findings(findings)
         print_summary(findings)
         print_risk_assessment(findings)
+        return findings
 
     except FileNotFoundError:
         print(f"\n[ERROR] Dockerfile not found: {path}")
@@ -482,7 +487,7 @@ def dockerfile_scan(path: str) -> None:
 # DOCKER COMPOSE SECURITY SCAN
 # ============================================================
 
-def compose_scan(path: str) -> None:
+def compose_scan(path: str) -> list[Finding]:
     """Scan a Docker Compose file."""
 
     print("=" * 70)
@@ -508,6 +513,7 @@ def compose_scan(path: str) -> None:
             attack_path_assessment["paths"],
         )
         print_ml_risk_assessment(findings)
+        return findings
 
     except FileNotFoundError:
         print(f"\n[ERROR] Compose file not found: {path}")
@@ -602,60 +608,134 @@ def full_scan() -> None:
     discover()
 
     # --------------------------------------------------------
-    # 3. Runtime scan
+    # 3. Collect runtime findings
     # --------------------------------------------------------
     print("\n[3/9] Runtime Container Scan")
-    security_scan()
+
+    runtime_findings = collect_runtime_findings()
+
+    print(f"Runtime Findings: {len(runtime_findings)}")
 
     # --------------------------------------------------------
     # 4. Dockerfile scan
     # --------------------------------------------------------
     print("\n[4/9] Dockerfile Security Scan")
+
     dockerfile_findings = scan_dockerfile(dockerfile_path)
-    print_findings(dockerfile_findings)
-    print_summary(dockerfile_findings)
-    print_risk_assessment(dockerfile_findings)
+
+    print(f"Dockerfile Findings: {len(dockerfile_findings)}")
 
     # --------------------------------------------------------
-    # 5. Compose scan
+    # 5. Docker Compose scan + unified analysis
     # --------------------------------------------------------
     print("\n[5/9] Docker Compose Security Scan")
+
     compose_findings = scan_compose(compose_path)
 
-    print_findings(compose_findings)
-    print_summary(compose_findings)
-    print_risk_assessment(compose_findings)
-    print_compliance_assessment(compose_findings)
-    print_correlation_assessment(compose_findings)
+    print(f"Compose Findings: {len(compose_findings)}")
 
-    attack_path_summary = summarize_attack_paths(compose_findings)
-    print_attack_path_assessment(attack_path_summary)
-
-    print_remediation_assessment(
-        compose_findings,
-        attack_path_summary["paths"],
+    # --------------------------------------------------------
+    # UNIFIED FINDINGS
+    # --------------------------------------------------------
+    all_findings = (
+        runtime_findings
+        + dockerfile_findings
+        + compose_findings
     )
 
-    print_ml_risk_assessment(compose_findings)
+    print("\n" + "=" * 70)
+    print("UNIFIED SECURITY ANALYSIS")
+    print("=" * 70)
+
+    print(f"\nRuntime Findings    : {len(runtime_findings)}")
+    print(f"Dockerfile Findings : {len(dockerfile_findings)}")
+    print(f"Compose Findings    : {len(compose_findings)}")
+    print(f"Total Findings      : {len(all_findings)}")
+
+    # --------------------------------------------------------
+    # Risk
+    # --------------------------------------------------------
+    risk = calculate_risk(all_findings)
+
+    print("\nRisk Assessment")
+    print("-" * 70)
+
+    print(f"Risk Score : {risk['score']}/100")
+    print(f"Risk Level : {risk['level']}")
+
+    # --------------------------------------------------------
+    # Compliance
+    # --------------------------------------------------------
+    print("\nCompliance Assessment")
+    print("-" * 70)
+
+    compliance = calculate_compliance(all_findings)
+
+    print(
+        f"Compliance : "
+        f"{compliance['compliance_percentage']}%"
+    )
+
+    # --------------------------------------------------------
+    # Correlations
+    # --------------------------------------------------------
+    print("\nCorrelation Analysis")
+    print("-" * 70)
+
+    correlations = summarize_correlations(all_findings)
+
+    print(
+        f"Correlations : "
+        f"{correlations['total']}"
+    )
+
+    # --------------------------------------------------------
+    # Attack paths
+    # --------------------------------------------------------
+    print("\nAttack-Path Analysis")
+    print("-" * 70)
+
+    attack_paths = summarize_attack_paths(all_findings)
+
+    print_attack_path_assessment(attack_paths)
+
+    # --------------------------------------------------------
+    # Remediation
+    # --------------------------------------------------------
+    print("\nRemediation Analysis")
+    print("-" * 70)
+
+    remediations = summarize_remediations(
+        all_findings,
+        attack_paths["paths"],
+    )
+
+    print_remediation_assessment(
+        all_findings,
+        attack_paths["paths"],
+    )
+
+    # --------------------------------------------------------
+    # ML
+    # --------------------------------------------------------
+    print("\nML Risk Analysis")
+    print("-" * 70)
+
+    print_ml_risk_assessment(all_findings)
 
     # --------------------------------------------------------
     # 6. What-if remediation simulation
     # --------------------------------------------------------
     print("\n[6/9] What-If Remediation Simulation")
 
-    remediation_summary = summarize_remediations(
-        compose_findings,
-        attack_path_summary["paths"],
-    )
-
     remediation_ids = [
         item["remediation_id"]
-        for item in remediation_summary["remediations"]
+        for item in remediations["remediations"]
     ]
 
     if remediation_ids:
         print_simulation_assessment(
-            compose_findings,
+            all_findings,
             remediation_ids,
         )
     else:
@@ -670,7 +750,7 @@ def full_scan() -> None:
         baseline = load_baseline()
 
         comparison = compare_with_baseline(
-            compose_findings,
+            all_findings,
             baseline,
         )
 
@@ -680,7 +760,7 @@ def full_scan() -> None:
         print("[INFO] No existing baseline found.")
         print("[INFO] Creating baseline from current scan...")
 
-        save_baseline(compose_findings)
+        save_baseline(all_findings)
 
         print("[OK] Baseline created.")
         print("Location: data\\baseline.json")
@@ -691,7 +771,7 @@ def full_scan() -> None:
     print("\n[8/9] HTML Security Report")
 
     report_path = generate_html_report(
-        compose_findings,
+        all_findings,
         "data\\report.html",
     )
 
@@ -702,15 +782,6 @@ def full_scan() -> None:
     # 9. Final consolidated result
     # --------------------------------------------------------
     print("\n[9/9] FINAL SECURITY RESULT")
-
-    risk = calculate_risk(compose_findings)
-    compliance = calculate_compliance(compose_findings)
-    correlations = summarize_correlations(compose_findings)
-    attack_paths = summarize_attack_paths(compose_findings)
-    remediations = summarize_remediations(
-        compose_findings,
-        attack_paths["paths"],
-    )
 
     print("\n" + "=" * 70)
     print("DOCKERSHIELD FINAL SECURITY SUMMARY")
@@ -753,7 +824,7 @@ def full_scan() -> None:
     )
 
     try:
-        prediction = predict_risk(compose_findings)
+        prediction = predict_risk(all_findings)
 
         print(
             f"\nML Risk          : "
