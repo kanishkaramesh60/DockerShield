@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from dockershield.dashboard.components.attack_graph import (
+    render_attack_graph,
+)
+
 from dockershield.dashboard.components.cards import (
     chain,
     metric_card,
@@ -54,7 +58,14 @@ def render_attack_paths(scan: dict):
                 + ", ".join(path.get("matched_rules", []))
             )
             chain(path.get("steps", []))
+    st.markdown("<br>", unsafe_allow_html=True)
 
+    section_header(
+        "Attack-Path Visualization",
+        "Explore how individual findings combine into potential security impact.",
+    )
+
+    render_attack_graph(paths)
 
 def render(api):
     section_header(

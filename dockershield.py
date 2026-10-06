@@ -608,7 +608,7 @@ def full_scan() -> None:
     discover()
 
     # --------------------------------------------------------
-    # 3. Collect runtime findings
+    # 3. Runtime container scan
     # --------------------------------------------------------
     print("\n[3/9] Runtime Container Scan")
 
@@ -621,18 +621,28 @@ def full_scan() -> None:
     # --------------------------------------------------------
     print("\n[4/9] Dockerfile Security Scan")
 
-    dockerfile_findings = scan_dockerfile(dockerfile_path)
+    dockerfile_findings = scan_dockerfile(
+        dockerfile_path
+    )
 
-    print(f"Dockerfile Findings: {len(dockerfile_findings)}")
+    print(
+        f"Dockerfile Findings: "
+        f"{len(dockerfile_findings)}"
+    )
 
     # --------------------------------------------------------
-    # 5. Docker Compose scan + unified analysis
+    # 5. Docker Compose scan
     # --------------------------------------------------------
     print("\n[5/9] Docker Compose Security Scan")
 
-    compose_findings = scan_compose(compose_path)
+    compose_findings = scan_compose(
+        compose_path
+    )
 
-    print(f"Compose Findings: {len(compose_findings)}")
+    print(
+        f"Compose Findings: "
+        f"{len(compose_findings)}"
+    )
 
     # --------------------------------------------------------
     # UNIFIED FINDINGS
@@ -647,29 +657,72 @@ def full_scan() -> None:
     print("UNIFIED SECURITY ANALYSIS")
     print("=" * 70)
 
-    print(f"\nRuntime Findings    : {len(runtime_findings)}")
-    print(f"Dockerfile Findings : {len(dockerfile_findings)}")
-    print(f"Compose Findings    : {len(compose_findings)}")
-    print(f"Total Findings      : {len(all_findings)}")
+    print(
+        f"\nRuntime Findings    : "
+        f"{len(runtime_findings)}"
+    )
+
+    print(
+        f"Dockerfile Findings : "
+        f"{len(dockerfile_findings)}"
+    )
+
+    print(
+        f"Compose Findings    : "
+        f"{len(compose_findings)}"
+    )
+
+    print(
+        f"Total Findings      : "
+        f"{len(all_findings)}"
+    )
 
     # --------------------------------------------------------
-    # Risk
+    # Risk scoring
     # --------------------------------------------------------
+    print("\n" + "-" * 70)
+    print("RISK ASSESSMENT")
+    print("-" * 70)
+
     risk = calculate_risk(all_findings)
 
-    print("\nRisk Assessment")
-    print("-" * 70)
+    print(
+        f"Risk Score : "
+        f"{risk['score']}/100"
+    )
 
-    print(f"Risk Score : {risk['score']}/100")
-    print(f"Risk Level : {risk['level']}")
+    print(
+        f"Risk Level : "
+        f"{risk['level']}"
+    )
+
+    print(
+        f"Total Findings : "
+        f"{risk['total_findings']}"
+    )
 
     # --------------------------------------------------------
-    # Compliance
+    # ML risk classification
+    # ML runs immediately after deterministic risk scoring
     # --------------------------------------------------------
-    print("\nCompliance Assessment")
+    print("\n" + "-" * 70)
+    print("ML RISK ANALYSIS")
     print("-" * 70)
 
-    compliance = calculate_compliance(all_findings)
+    print_ml_risk_assessment(
+        all_findings
+    )
+
+    # --------------------------------------------------------
+    # Compliance analysis
+    # --------------------------------------------------------
+    print("\n" + "-" * 70)
+    print("COMPLIANCE ANALYSIS")
+    print("-" * 70)
+
+    compliance = calculate_compliance(
+        all_findings
+    )
 
     print(
         f"Compliance : "
@@ -677,12 +730,15 @@ def full_scan() -> None:
     )
 
     # --------------------------------------------------------
-    # Correlations
+    # Correlation analysis
     # --------------------------------------------------------
-    print("\nCorrelation Analysis")
+    print("\n" + "-" * 70)
+    print("CORRELATION ANALYSIS")
     print("-" * 70)
 
-    correlations = summarize_correlations(all_findings)
+    correlations = summarize_correlations(
+        all_findings
+    )
 
     print(
         f"Correlations : "
@@ -690,19 +746,25 @@ def full_scan() -> None:
     )
 
     # --------------------------------------------------------
-    # Attack paths
+    # Attack-path analysis
     # --------------------------------------------------------
-    print("\nAttack-Path Analysis")
+    print("\n" + "-" * 70)
+    print("ATTACK-PATH ANALYSIS")
     print("-" * 70)
 
-    attack_paths = summarize_attack_paths(all_findings)
+    attack_paths = summarize_attack_paths(
+        all_findings
+    )
 
-    print_attack_path_assessment(attack_paths)
+    print_attack_path_assessment(
+        attack_paths
+    )
 
     # --------------------------------------------------------
-    # Remediation
+    # Remediation analysis
     # --------------------------------------------------------
-    print("\nRemediation Analysis")
+    print("\n" + "-" * 70)
+    print("REMEDIATION ANALYSIS")
     print("-" * 70)
 
     remediations = summarize_remediations(
@@ -714,14 +776,6 @@ def full_scan() -> None:
         all_findings,
         attack_paths["paths"],
     )
-
-    # --------------------------------------------------------
-    # ML
-    # --------------------------------------------------------
-    print("\nML Risk Analysis")
-    print("-" * 70)
-
-    print_ml_risk_assessment(all_findings)
 
     # --------------------------------------------------------
     # 6. What-if remediation simulation
@@ -739,7 +793,10 @@ def full_scan() -> None:
             remediation_ids,
         )
     else:
-        print("No remediation actions available for simulation.")
+        print(
+            "No remediation actions "
+            "available for simulation."
+        )
 
     # --------------------------------------------------------
     # 7. Baseline / regression analysis
@@ -754,19 +811,31 @@ def full_scan() -> None:
             baseline,
         )
 
-        print_baseline_assessment(comparison)
+        print_baseline_assessment(
+            comparison
+        )
 
     except FileNotFoundError:
-        print("[INFO] No existing baseline found.")
-        print("[INFO] Creating baseline from current scan...")
+        print(
+            "[INFO] No existing baseline found."
+        )
 
-        save_baseline(all_findings)
+        print(
+            "[INFO] Creating baseline "
+            "from current scan..."
+        )
+
+        save_baseline(
+            all_findings
+        )
 
         print("[OK] Baseline created.")
-        print("Location: data\\baseline.json")
+        print(
+            "Location: data\\baseline.json"
+        )
 
     # --------------------------------------------------------
-    # 8. HTML report
+    # 8. HTML security report
     # --------------------------------------------------------
     print("\n[8/9] HTML Security Report")
 
@@ -775,8 +844,13 @@ def full_scan() -> None:
         "data\\report.html",
     )
 
-    print("[OK] HTML report generated.")
-    print(f"Location: {report_path}")
+    print(
+        "[OK] HTML report generated."
+    )
+
+    print(
+        f"Location: {report_path}"
+    )
 
     # --------------------------------------------------------
     # 9. Final consolidated result
@@ -787,44 +861,32 @@ def full_scan() -> None:
     print("DOCKERSHIELD FINAL SECURITY SUMMARY")
     print("=" * 70)
 
-    print(f"\nRisk Score       : {risk['score']}/100")
-    print(f"Risk Level       : {risk['level']}")
-    print(f"Total Findings   : {risk['total_findings']}")
-
-    counts = risk["severity_counts"]
-
-    print(f"CRITICAL         : {counts['CRITICAL']}")
-    print(f"HIGH             : {counts['HIGH']}")
-    print(f"MEDIUM           : {counts['MEDIUM']}")
-    print(f"LOW              : {counts['LOW']}")
-
+    # --------------------------------------------------------
+    # Final risk
+    # --------------------------------------------------------
     print(
-        f"\nCompliance       : "
-        f"{compliance['compliance_percentage']}%"
+        f"\nRisk Score       : "
+        f"{risk['score']}/100"
     )
 
     print(
-        f"Correlations     : "
-        f"{correlations['total']}"
+        f"Risk Level       : "
+        f"{risk['level']}"
     )
 
     print(
-        f"Attack Paths     : "
-        f"{attack_paths['total']}"
+        f"Total Findings   : "
+        f"{risk['total_findings']}"
     )
 
-    print(
-        f"Remediations     : "
-        f"{remediations['total']}"
-    )
 
-    print(
-        f"Attack-Path Fixes: "
-        f"{remediations['attack_path_fixes']}"
-    )
-
+    # --------------------------------------------------------
+    # Final ML result
+    # --------------------------------------------------------
     try:
-        prediction = predict_risk(all_findings)
+        prediction = predict_risk(
+            all_findings
+        )
 
         print(
             f"\nML Risk          : "
@@ -837,15 +899,88 @@ def full_scan() -> None:
         )
 
     except Exception as exc:
-        print(f"\nML Risk          : Unavailable ({exc})")
+        print(
+            f"\nML Risk          : "
+            f"Unavailable ({exc})"
+        )
 
-    print("\nReport            : data\\report.html")
-    print("Baseline          : data\\baseline.json")
+    counts = risk["severity_counts"]
+
+    print(
+        f"CRITICAL         : "
+        f"{counts['CRITICAL']}"
+    )
+
+    print(
+        f"HIGH             : "
+        f"{counts['HIGH']}"
+    )
+
+    print(
+        f"MEDIUM           : "
+        f"{counts['MEDIUM']}"
+    )
+
+    print(
+        f"LOW              : "
+        f"{counts['LOW']}"
+    )
+
+    # --------------------------------------------------------
+    # Final compliance
+    # --------------------------------------------------------
+    print(
+        f"\nCompliance       : "
+        f"{compliance['compliance_percentage']}%"
+    )
+
+    # --------------------------------------------------------
+    # Final correlations
+    # --------------------------------------------------------
+    print(
+        f"Correlations     : "
+        f"{correlations['total']}"
+    )
+
+    # --------------------------------------------------------
+    # Final attack paths
+    # --------------------------------------------------------
+    print(
+        f"Attack Paths     : "
+        f"{attack_paths['total']}"
+    )
+
+    # --------------------------------------------------------
+    # Final remediations
+    # --------------------------------------------------------
+    print(
+        f"Remediations     : "
+        f"{remediations['total']}"
+    )
+
+    print(
+        f"Attack-Path Fixes: "
+        f"{remediations['attack_path_fixes']}"
+    )
+
+    # --------------------------------------------------------
+    # Output files
+    # --------------------------------------------------------
+    print(
+        "\nReport            : "
+        "data\\report.html"
+    )
+
+    print(
+        "Baseline          : "
+        "data\\baseline.json"
+    )
 
     print("\n" + "=" * 70)
-    print("DOCKERSHIELD FULL ANALYSIS COMPLETE")
+    print(
+        "DOCKERSHIELD FULL ANALYSIS COMPLETE"
+    )
     print("=" * 70)
-
 # ============================================================
 # CLI
 # ============================================================
