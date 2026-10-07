@@ -11,10 +11,14 @@ from dockershield.dashboard.components.charts import (
     risk_gauge,
     severity_chart,
 )
+from dockershield.dashboard.state import get_paths
 
 
 def render(api):
-    render_overview(api, st.session_state.get("scan_data"))
+    render_overview(
+        api,
+        st.session_state.get("scan_data"),
+    )
 
 
 def render_overview(api, scan_data=None):
@@ -26,7 +30,9 @@ def render_overview(api, scan_data=None):
     try:
         health = api.health()
     except Exception as exc:
-        st.error(f"Unable to connect to DockerShield API: {exc}")
+        st.error(
+            f"Unable to connect to DockerShield API: {exc}"
+        )
         return
 
     docker_connected = health.get("docker") == "connected"
@@ -46,29 +52,65 @@ def render_overview(api, scan_data=None):
     risk = scan_data.get("risk", {})
     compliance = scan_data.get("compliance", {})
     correlations = scan_data.get("correlations", {})
-    attack_paths = scan_data.get("attack_paths", {})
     findings = scan_data.get("findings", [])
     ml_prediction = scan_data.get("ml_prediction")
 
+    attack_paths = get_paths(scan_data)
+
     score = risk.get("score", 0)
     level = risk.get("level", "SECURE")
+
+    critical_attack_paths = sum(
+        1
+        for path in attack_paths
+        if path.get("severity", "").upper() == "CRITICAL"
+    )
+
+    if isinstance(correlations, dict):
+        correlation_items = correlations.get(
+            "correlations",
+            [],
+        )
+    elif isinstance(correlations, list):
+        correlation_items = correlations
+    else:
+        correlation_items = []
+
+    critical_correlations = sum(
+        1
+        for correlation in correlation_items
+        if correlation.get("severity", "").upper() == "CRITICAL"
+    )
 
     st.markdown(
         f"""
         <div class="hero-panel">
             <div>
-                <div class="hero-eyebrow">DOCKERSHIELD SECURITY CENTER</div>
+                <div class="hero-eyebrow">
+                    DOCKERSHIELD SECURITY CENTER
+                </div>
+
                 <h1>Container Security Posture</h1>
+
                 <p>
                     Continuous analysis of runtime configuration,
                     Dockerfiles, Compose files, compliance controls,
                     attack paths and remediation opportunities.
                 </p>
             </div>
+
             <div class="hero-status">
-                <div class="hero-status-label">CURRENT RISK</div>
-                <div class="hero-status-value">{level}</div>
-                <div class="hero-status-score">{score}/100</div>
+                <div class="hero-status-label">
+                    CURRENT RISK
+                </div>
+
+                <div class="hero-status-value">
+                    {level}
+                </div>
+
+                <div class="hero-status-score">
+                    {score}/100
+                </div>
             </div>
         </div>
         """,
@@ -88,19 +130,32 @@ def render_overview(api, scan_data=None):
         )
 
     with c2:
+        compliance_percentage = compliance.get(
+            "compliance_percentage",
+            compliance.get("percentage", 100),
+        )
+
+        failed_controls = compliance.get(
+            "failed",
+            0,
+        )
+
         metric_card(
             "Compliance",
-            f"{compliance.get('compliance_percentage', 100)}%",
-            f"{compliance.get('failed', 0)} controls failed",
-            "green"
-            if compliance.get("failed", 0) == 0
-            else "yellow",
+            f"{compliance_percentage}%",
+            f"{failed_controls} controls failed",
+            "green" if failed_controls == 0 else "yellow",
         )
 
     with c3:
+        total_findings = risk.get(
+            "total_findings",
+            len(findings),
+        )
+
         metric_card(
             "Findings",
-            risk.get("total_findings", len(findings)),
+            total_findings,
             "Security findings detected",
             "red" if findings else "green",
         )
@@ -108,9 +163,9 @@ def render_overview(api, scan_data=None):
     with c4:
         metric_card(
             "Attack Paths",
-            attack_paths.get("total", 0),
-            f"{attack_paths.get('critical', 0)} critical",
-            "red" if attack_paths.get("critical", 0) else "green",
+            len(attack_paths),
+            f"{critical_attack_paths} critical",
+            "red" if critical_attack_paths else "green",
         )
 
     st.markdown("###")
@@ -145,8 +200,8 @@ def render_overview(api, scan_data=None):
 
         metric_card(
             "Correlations",
-            correlations.get("total", 0),
-            f"{correlations.get('critical', 0)} critical correlations",
+            len(correlation_items),
+            f"{critical_correlations} critical correlations",
             "purple",
         )
 
@@ -154,9 +209,9 @@ def render_overview(api, scan_data=None):
 
         metric_card(
             "Critical Attack Paths",
-            attack_paths.get("critical", 0),
+            critical_attack_paths,
             "Potential host-impact chains",
-            "red",
+            "red" if critical_attack_paths else "green",
         )
 
         st.markdown("###")
@@ -166,8 +221,13 @@ def render_overview(api, scan_data=None):
                 "predicted_class",
                 "UNKNOWN",
             )
+
             confidence = (
-                ml_prediction.get("confidence", 0) * 100
+                ml_prediction.get(
+                    "confidence",
+                    0,
+                )
+                * 100
             )
 
             metric_card(
@@ -187,11 +247,17 @@ def render_overview(api, scan_data=None):
     critical_findings = [
         finding
         for finding in findings
-        if finding.get("severity", "").upper() == "CRITICAL"
+        if finding.get(
+            "severity",
+            "",
+        ).upper()
+        == "CRITICAL"
     ]
 
     if not critical_findings:
-        st.success("No critical findings detected.")
+        st.success(
+            "No critical findings detected."
+        )
     else:
         for finding in critical_findings[:5]:
             with st.container():
@@ -205,9 +271,11 @@ def render_overview(api, scan_data=None):
                         f"**{finding.get('rule_id', 'N/A')} — "
                         f"{finding.get('title', 'Unknown finding')}**"
                     )
+
                     st.caption(
                         f"{finding.get('container', 'Unknown target')}"
                     )
+
                     st.write(
                         finding.get(
                             "description",
@@ -228,7 +296,9 @@ def _empty_dashboard(api):
         """
         <div class="empty-state">
             <div class="empty-icon">◈</div>
+
             <h2>DockerShield is ready</h2>
+
             <p>
                 Select <b>Scan Center</b> from the sidebar to scan a
                 running container, Dockerfile or Compose project.
@@ -248,5 +318,6 @@ def _empty_dashboard(api):
             "Available for runtime scanning",
             "blue",
         )
+
     except Exception:
         pass

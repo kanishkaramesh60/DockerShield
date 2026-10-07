@@ -98,6 +98,34 @@ class DockerShieldAPI:
     def compose_scan(self, path: str) -> dict:
         return self._post("/scan/compose", {"path": path})
 
+    def full_scan(
+        self,
+        compose_path: str = "test-data\\vulnerable\\compose.yml",
+        dockerfile_path: str = "test-data\\Dockerfile",
+    ) -> dict:
+        """
+        Run the complete DockerShield scan through the shared
+        FastAPI /scan/full endpoint.
+
+        This executes:
+        - runtime scanning
+        - Dockerfile scanning
+        - Compose scanning
+        - deterministic risk scoring
+        - ML risk classification
+        - compliance analysis
+        - finding correlations
+        - attack-path analysis
+        - remediation generation
+        """
+        return self._post(
+            "/scan/full",
+            {
+                "compose_path": compose_path,
+                "dockerfile_path": dockerfile_path,
+            },
+        )
+
     def simulate(self, path: str, remediation_ids: list[str]) -> dict:
         return self._post(
             "/simulate",

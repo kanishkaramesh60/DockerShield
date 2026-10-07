@@ -12,14 +12,12 @@ from dockershield.runtime import scan_container
 from dockershield.dockerfile import scan_dockerfile
 from dockershield.compose import scan_compose
 
-from dockershield.engine.risk import calculate_risk
-from dockershield.engine.compliance import calculate_compliance
-from dockershield.engine.correlation import summarize_correlations
-from dockershield.engine.attack_path import summarize_attack_paths
-from dockershield.engine.remediation import summarize_remediations
 from dockershield.engine.simulator import simulate_remediations
 
-from dockershield.ml.predict import predict_risk
+from dockershield.core.scanner import (
+    analyze_findings as core_analyze_findings,
+    run_full_scan,
+)
 
 
 # =========================================================
@@ -57,81 +55,24 @@ class SimulationRequest(BaseModel):
     remediation_ids: list[str]
 
 
+class FullScanRequest(BaseModel):
+    compose_path: str = (
+        "test-data\\vulnerable\\compose.yml"
+    )
+
+    dockerfile_path: str = (
+        "test-data\\Dockerfile"
+    )
+
+
 # =========================================================
 # HELPERS
 # =========================================================
 
-def findings_to_dict(findings) -> list[dict[str, Any]]:
-    """
-    Convert Finding dataclasses into JSON-compatible dictionaries.
-    """
-
-    return [
-        finding.to_dict()
-        for finding in findings
-    ]
-
-
-def analyze_findings(findings) -> dict[str, Any]:
-    """
-    Run all DockerShield analysis engines against a finding set.
-
-    This is the central API analysis pipeline.
-
-    Pipeline:
-
-        Findings
-           |
-           +--> Risk
-           |
-           +--> Compliance
-           |
-           +--> Correlations
-           |
-           +--> Attack Paths
-           |
-           +--> Remediation
-           |
-           +--> XGBoost
-    """
-
-    risk = calculate_risk(findings)
-
-    compliance = calculate_compliance(findings)
-
-    correlations = summarize_correlations(findings)
-
-    attack_paths = summarize_attack_paths(findings)
-
-    remediations = summarize_remediations(
-        findings,
-        attack_paths["paths"],
-    )
-
-    try:
-        ml_prediction = predict_risk(findings)
-
-    except FileNotFoundError:
-        ml_prediction = None
-
-    return {
-        "findings": findings_to_dict(findings),
-
-        "risk": risk,
-
-        "compliance": compliance,
-
-        "correlations": correlations,
-
-        "attack_paths": attack_paths,
-
-        "remediations": remediations,
-
-        "ml_prediction": ml_prediction,
-    }
-
-
-def validate_file(path_string: str, description: str) -> Path:
+def validate_file(
+    path_string: str,
+    description: str,
+) -> Path:
     """
     Validate a user-provided local file path.
     """
@@ -151,6 +92,25 @@ def validate_file(path_string: str, description: str) -> Path:
         )
 
     return path
+
+
+def analyze_findings(
+    findings,
+    scan_type: str,
+    target: str,
+) -> dict[str, Any]:
+    """
+    Use the shared DockerShield analysis engine.
+
+    The API does NOT maintain a second copy of the
+    risk/compliance/correlation/attack-path/ML logic.
+    """
+
+    return core_analyze_findings(
+        findings=findings,
+        scan_type=scan_type,
+        target=target,
+    )
 
 
 # =========================================================
@@ -175,7 +135,8 @@ def health():
     """
     API health endpoint.
 
-    Docker being unavailable does NOT make the API itself unhealthy.
+    Docker being unavailable does NOT make the API itself
+    unhealthy.
     """
 
     client = try_get_client()
@@ -200,9 +161,6 @@ def health():
 def containers():
     """
     Return all Docker containers.
-
-    This endpoint never terminates the FastAPI process if Docker
-    is unavailable.
     """
 
     client = try_get_client()
@@ -219,7 +177,9 @@ def containers():
     try:
         results = []
 
-        for container in client.containers.list(all=True):
+        for container in client.containers.list(
+            all=True
+        ):
 
             image_name = (
                 container.image.tags[0]
@@ -253,9 +213,13 @@ def containers():
 # =========================================================
 
 @app.post("/scan/runtime")
-def runtime_scan(request: RuntimeScanRequest):
+def runtime_scan(
+    request: RuntimeScanRequest,
+):
     """
     Scan a running or stopped Docker container.
+
+    Uses the same central analysis engine as the CLI.
     """
 
     client = try_get_client()
@@ -274,16 +238,15 @@ def runtime_scan(request: RuntimeScanRequest):
             request.container
         )
 
-        findings = scan_container(container)
+        findings = scan_container(
+            container
+        )
 
-        result = analyze_findings(findings)
-
-        result["scan_metadata"] = {
-            "scan_type": "runtime",
-            "target": request.container,
-        }
-
-        return result
+        return analyze_findings(
+            findings=findings,
+            scan_type="runtime",
+            target=request.container,
+        )
 
     except Exception as exc:
         raise HTTPException(
@@ -302,6 +265,8 @@ def dockerfile_scan(
 ):
     """
     Scan a Dockerfile.
+
+    Uses the same central analysis engine as the CLI.
     """
 
     path = validate_file(
@@ -314,14 +279,11 @@ def dockerfile_scan(
             str(path)
         )
 
-        result = analyze_findings(findings)
-
-        result["scan_metadata"] = {
-            "scan_type": "dockerfile",
-            "target": str(path),
-        }
-
-        return result
+        return analyze_findings(
+            findings=findings,
+            scan_type="dockerfile",
+            target=str(path),
+        )
 
     except Exception as exc:
         raise HTTPException(
@@ -340,6 +302,8 @@ def compose_scan(
 ):
     """
     Scan a Docker Compose file.
+
+    Uses the same central analysis engine as the CLI.
     """
 
     path = validate_file(
@@ -352,18 +316,78 @@ def compose_scan(
             str(path)
         )
 
-        result = analyze_findings(findings)
-
-        result["scan_metadata"] = {
-            "scan_type": "compose",
-            "target": str(path),
-        }
-
-        return result
+        return analyze_findings(
+            findings=findings,
+            scan_type="compose",
+            target=str(path),
+        )
 
     except Exception as exc:
         raise HTTPException(
             status_code=400,
+            detail=str(exc),
+        )
+
+
+# =========================================================
+# FULL DOCKERSHIELD SCAN
+# =========================================================
+
+@app.post("/scan/full")
+def full_scan(
+    request: FullScanRequest,
+):
+    """
+    Run the complete DockerShield security pipeline.
+
+    One API request performs:
+
+        1. Docker environment discovery
+        2. Runtime scanning
+        3. Dockerfile scanning
+        4. Compose scanning
+        5. Risk scoring
+        6. ML risk classification
+        7. Compliance analysis
+        8. Correlation analysis
+        9. Attack-path analysis
+        10. Remediation analysis
+
+    The dashboard uses this endpoint for its single
+    RUN FULL SCAN button.
+
+    No duplicate scanner implementation is used here.
+    """
+
+    try:
+        result = run_full_scan(
+            compose_path=request.compose_path,
+            dockerfile_path=request.dockerfile_path,
+        )
+
+        return result
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
+
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
             detail=str(exc),
         )
 
@@ -380,6 +404,7 @@ def simulate(
     Simulate remediation actions against a Compose scan.
 
     This is completely in-memory.
+
     It does NOT modify Docker or the Compose file.
     """
 
@@ -425,16 +450,28 @@ def api_info():
     return {
         "name": "DockerShield",
         "version": "1.0.0",
+
         "features": [
             "runtime scanning",
             "Dockerfile scanning",
             "Compose scanning",
+            "full environment scanning",
             "risk analysis",
+            "ML risk prediction",
             "compliance analysis",
             "finding correlation",
             "attack-path analysis",
             "attack-path-aware remediation",
             "what-if remediation simulation",
-            "XGBoost risk prediction",
         ],
+
+        "endpoints": {
+            "health": "/health",
+            "containers": "/containers",
+            "runtime_scan": "/scan/runtime",
+            "dockerfile_scan": "/scan/dockerfile",
+            "compose_scan": "/scan/compose",
+            "full_scan": "/scan/full",
+            "simulation": "/simulate",
+        },
     }
